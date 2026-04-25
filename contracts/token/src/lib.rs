@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Symbol,
+    contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol,
 };
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
@@ -113,7 +113,10 @@ impl TokenContract {
         assert!(bal >= amount, "insufficient balance");
 
         Self::set_balance(&env, &from, bal - amount);
-        let new_supply = Self::total_supply(&env) - amount;
+        // Fix: use checked_sub to guard against supply underflow
+        let new_supply = Self::total_supply(&env)
+            .checked_sub(amount)
+            .expect("supply underflow");
         Self::set_total_supply(&env, new_supply);
 
         env.events()
@@ -239,3 +242,6 @@ mod tests {
         client.transfer(&alice, &bob, &100);
     }
 }
+
+#[cfg(test)]
+mod fuzz_tests;
