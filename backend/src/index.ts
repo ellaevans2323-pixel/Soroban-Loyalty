@@ -9,11 +9,17 @@ import { startIndexer } from "./indexer/indexer";
 import { rpcServer } from "./soroban";
 import { pool } from "./db";
 import { registry, httpRequestsTotal, httpRequestDuration, dbPoolActive, dbPoolIdle, dbPoolWaiting } from "./metrics";
+import { runMigrations } from "./migrate";
 
 // Load .env first (no-op in production where env vars are injected),
 // then fetch secrets from AWS Secrets Manager before any other init.
 dotenv.config();
 await loadSecrets();
+
+// Auto-run migrations in development so the DB is always up-to-date on startup.
+if (process.env.NODE_ENV !== "production") {
+  await runMigrations();
+}
 
 const app = express();
 app.use(cors());

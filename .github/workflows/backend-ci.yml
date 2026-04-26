@@ -52,8 +52,8 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      - name: Apply DB schema
-        run: psql $DATABASE_URL -f ../database/schema.sql
+      - name: Run migrations
+        run: npm run migrate:up
 
       - name: Run tests
         run: npm test -- --ci --coverage
