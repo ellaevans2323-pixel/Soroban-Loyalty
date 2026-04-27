@@ -52,12 +52,15 @@ pub enum DataKey {
     TokenContract,
     CampaignContract,
     Admin,
+    Paused,
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
 
 const REWARD_CLAIMED: Symbol = symbol_short!("RWD_CLM");
 const REWARD_REDEEMED: Symbol = symbol_short!("RWD_RDM");
+const PAUSED: Symbol = symbol_short!("PAUSED");
+const UNPAUSED: Symbol = symbol_short!("UNPAUSED");
 
 // ── Contract ──────────────────────────────────────────────────────────────────
 
@@ -108,6 +111,40 @@ impl RewardsContract {
             .has(&DataKey::Claimed(user.clone(), campaign_id))
     }
 
+    // ── Pause helpers ─────────────────────────────────────────────────────────
+
+    fn require_admin(env: &Env) {
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        admin.require_auth();
+    }
+
+    fn is_paused(env: &Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
+    }
+
+    fn require_not_paused(env: &Env) {
+        assert!(!Self::is_paused(env), "contract is paused");
+    }
+
+    pub fn emergency_pause(env: Env) {
+        Self::require_admin(&env);
+        env.storage().instance().set(&DataKey::Paused, &true);
+        env.events().publish((PAUSED,), ());
+    }
+
+    pub fn emergency_unpause(env: Env) {
+        Self::require_admin(&env);
+        env.storage().instance().set(&DataKey::Paused, &false);
+        env.events().publish((UNPAUSED,), ());
+    }
+
+    pub fn paused(env: Env) -> bool {
+        Self::is_paused(&env)
+    }
+
     /// Returns multiplier in basis points (10000 = 1x, 20000 = 2x).
     /// Formula: 1 + (expires_at - now) / (expires_at - created_at), capped [1x, 2x].
     fn calc_multiplier(now: u64, created_at: u64, expires_at: u64) -> u64 {
@@ -123,6 +160,7 @@ impl RewardsContract {
 
     pub fn claim_reward(env: Env, user: Address, campaign_id: u64) {
         user.require_auth();
+        Self::require_not_paused(&env);
 
         // Double-claim guard — checked BEFORE any external calls
         assert!(
@@ -161,6 +199,7 @@ impl RewardsContract {
 
     pub fn redeem_reward(env: Env, user: Address, amount: i128) {
         user.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount > 0, "amount must be positive");
 
         Self::token_client(&env).burn(&user, &amount);
@@ -340,7 +379,11 @@ mod tests {
         let expiry = t.env.ledger().timestamp() + 86400; // 24 hours
 
         // 1. Create active campaign
-        let campaign_id = t.campaign.create_campaign(&merchant, &reward_amount, &expiry);
+        let campaign_id = t.campaign.create_campaign(
+            &merchant, &reward_amount, &expiry,
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Test"),
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Test"),
+        );
         assert!(t.campaign.is_active(&campaign_id));
 
         // 2. User claims reward
@@ -365,7 +408,11 @@ mod tests {
         let expiry = t.env.ledger().timestamp() + 86400;
 
         // Setup: User has claimed rewards
-        let campaign_id = t.campaign.create_campaign(&merchant, &reward_amount, &expiry);
+        let campaign_id = t.campaign.create_campaign(
+            &merchant, &reward_amount, &expiry,
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Test"),
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Test"),
+        );
         t.rewards.claim_reward(&user, &campaign_id);
         
         // Verify initial balance from claim
@@ -391,8 +438,16 @@ mod tests {
         let expiry = t.env.ledger().timestamp() + 86400;
 
         // Create two campaigns with different reward amounts
-        let campaign1_id = t.campaign.create_campaign(&merchant1, &100, &expiry);
-        let campaign2_id = t.campaign.create_campaign(&merchant2, &200, &expiry);
+        let campaign1_id = t.campaign.create_campaign(
+            &merchant1, &100, &expiry,
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Camp1"),
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Camp1"),
+        );
+        let campaign2_id = t.campaign.create_campaign(
+            &merchant2, &200, &expiry,
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Camp2"),
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Camp2"),
+        );
 
         // User1 claims from both campaigns
         t.rewards.claim_reward(&user1, &campaign1_id);
@@ -427,7 +482,11 @@ mod tests {
         let user2 = Address::generate(&t.env);
         let short_expiry = t.env.ledger().timestamp() + 10; // Short expiry
 
-        let campaign_id = t.campaign.create_campaign(&merchant, &500, &short_expiry);
+        let campaign_id = t.campaign.create_campaign(
+            &merchant, &500, &short_expiry,
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Test"),
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Test"),
+        );
         
         // User1 claims before expiry - should succeed
         t.rewards.claim_reward(&user1, &campaign_id);
@@ -455,7 +514,11 @@ mod tests {
         let user = Address::generate(&t.env);
         let expiry = t.env.ledger().timestamp() + 86400;
 
-        let campaign_id = t.campaign.create_campaign(&merchant, &500, &expiry);
+        let campaign_id = t.campaign.create_campaign(
+            &merchant, &500, &expiry,
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Test"),
+            &soroban_sdk::Bytes::from_slice(&t.env, b"Test"),
+        );
         
         // Deactivate campaign via campaign contract
         t.campaign.set_active(&campaign_id, &false);
@@ -474,5 +537,40 @@ mod tests {
         assert_eq!(t.token.balance(&user1), 100);
         assert_eq!(t.token.balance(&user2), 100);
         assert_eq!(t.token.total_supply_view(), 200);
+    }
+
+    // ── Pause tests ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_pause_and_unpause() {
+        let t = setup();
+        assert!(!t.rewards.paused());
+        t.rewards.emergency_pause();
+        assert!(t.rewards.paused());
+        t.rewards.emergency_unpause();
+        assert!(!t.rewards.paused());
+    }
+
+    #[test]
+    #[should_panic(expected = "contract is paused")]
+    fn test_claim_blocked_when_paused() {
+        let t = setup();
+        let merchant = Address::generate(&t.env);
+        let user = Address::generate(&t.env);
+        let cid = make_campaign(&t, &merchant, 500);
+        t.rewards.emergency_pause();
+        t.rewards.claim_reward(&user, &cid);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract is paused")]
+    fn test_redeem_blocked_when_paused() {
+        let t = setup();
+        let merchant = Address::generate(&t.env);
+        let user = Address::generate(&t.env);
+        let cid = make_campaign(&t, &merchant, 500);
+        t.rewards.claim_reward(&user, &cid);
+        t.rewards.emergency_pause();
+        t.rewards.redeem_reward(&user, &100);
     }
 }

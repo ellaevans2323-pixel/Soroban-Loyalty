@@ -15,6 +15,7 @@ pub enum DataKey {
     Name,
     Symbol,
     Decimals,
+    Paused,
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -23,6 +24,8 @@ const MINT: Symbol = symbol_short!("MINT");
 const TRANSFER: Symbol = symbol_short!("TRANSFER");
 const BURN: Symbol = symbol_short!("BURN");
 const APPROVAL: Symbol = symbol_short!("APPROVAL");
+const PAUSED: Symbol = symbol_short!("PAUSED");
+const UNPAUSED: Symbol = symbol_short!("UNPAUSED");
 
 // ── Contract ──────────────────────────────────────────────────────────────────
 
@@ -57,6 +60,35 @@ impl TokenContract {
 
     fn require_admin(env: &Env) {
         Self::admin(env).require_auth();
+    }
+
+    // ── Pause helpers ─────────────────────────────────────────────────────────
+
+    fn is_paused(env: &Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
+    }
+
+    fn require_not_paused(env: &Env) {
+        assert!(!Self::is_paused(env), "contract is paused");
+    }
+
+    pub fn emergency_pause(env: Env) {
+        Self::require_admin(&env);
+        env.storage().instance().set(&DataKey::Paused, &true);
+        env.events().publish((PAUSED,), ());
+    }
+
+    pub fn emergency_unpause(env: Env) {
+        Self::require_admin(&env);
+        env.storage().instance().set(&DataKey::Paused, &false);
+        env.events().publish((UNPAUSED,), ());
+    }
+
+    pub fn paused(env: Env) -> bool {
+        Self::is_paused(&env)
     }
 
     // ── Balance helpers ───────────────────────────────────────────────────────
@@ -104,6 +136,7 @@ impl TokenContract {
 
     pub fn mint(env: Env, to: Address, amount: i128) {
         Self::require_admin(&env);
+        Self::require_not_paused(&env);
         assert!(amount > 0, "amount must be positive");
 
         // Build key once; reuse for both read and write — avoids a second
@@ -125,6 +158,7 @@ impl TokenContract {
 
     pub fn burn(env: Env, from: Address, amount: i128) {
         from.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount > 0, "amount must be positive");
 
         let key = DataKey::Balance(from.clone());
@@ -144,6 +178,7 @@ impl TokenContract {
 
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
         from.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount > 0, "amount must be positive");
 
         // Build both keys up front so each address is cloned exactly once.
@@ -170,6 +205,7 @@ impl TokenContract {
     /// Approve `spender` to transfer up to `amount` tokens on behalf of the caller.
     pub fn approve(env: Env, owner: Address, spender: Address, amount: i128) {
         owner.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount >= 0, "amount must be non-negative");
         Self::set_allowance(&env, &owner, &spender, amount);
         env.events()
@@ -179,20 +215,23 @@ impl TokenContract {
     /// Transfer `amount` tokens from `from` to `to` using the caller's allowance.
     pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount > 0, "amount must be positive");
 
         let current = Self::get_allowance(&env, &from, &spender);
         assert!(current >= amount, "allowance exceeded");
 
-        let from_bal = Self::balance_of(&env, &from);
+        let from_key = DataKey::Balance(from.clone());
+        let to_key = DataKey::Balance(to.clone());
+        let from_bal = Self::read_balance(&env, &from_key);
         assert!(from_bal >= amount, "insufficient balance");
 
         Self::set_allowance(&env, &from, &spender, current - amount);
-        Self::set_balance(&env, &from, from_bal - amount);
-        let to_bal = Self::balance_of(&env, &to)
+        Self::write_balance(&env, &from_key, from_bal - amount);
+        let to_bal = Self::read_balance(&env, &to_key)
             .checked_add(amount)
             .expect("overflow");
-        Self::set_balance(&env, &to, to_bal);
+        Self::write_balance(&env, &to_key, to_bal);
 
         env.events()
             .publish((TRANSFER, symbol_short!("from"), from), (to, amount));
@@ -375,5 +414,47 @@ mod tests {
         client.approve(&alice, &spender, &500);
         client.approve(&alice, &spender, &100);
         assert_eq!(client.allowance(&alice, &spender), 100);
+    }
+
+    // ── Pause tests ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_pause_and_unpause() {
+        let (_env, _admin, client) = setup();
+        assert!(!client.paused());
+        client.emergency_pause();
+        assert!(client.paused());
+        client.emergency_unpause();
+        assert!(!client.paused());
+    }
+
+    #[test]
+    #[should_panic(expected = "contract is paused")]
+    fn test_mint_blocked_when_paused() {
+        let (env, _admin, client) = setup();
+        let user = Address::generate(&env);
+        client.emergency_pause();
+        client.mint(&user, &100);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract is paused")]
+    fn test_transfer_blocked_when_paused() {
+        let (env, _admin, client) = setup();
+        let alice = Address::generate(&env);
+        let bob = Address::generate(&env);
+        client.mint(&alice, &500);
+        client.emergency_pause();
+        client.transfer(&alice, &bob, &100);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract is paused")]
+    fn test_burn_blocked_when_paused() {
+        let (env, _admin, client) = setup();
+        let user = Address::generate(&env);
+        client.mint(&user, &300);
+        client.emergency_pause();
+        client.burn(&user, &100);
     }
 }
