@@ -51,6 +51,16 @@ pub struct CampaignContract;
 
 #[contractimpl]
 impl CampaignContract {
+    /// Initialize the contract with a multi-sig admin set and approval threshold.
+    ///
+    /// # Parameters
+    /// - `admins` — list of admin addresses; length must be ≥ `threshold`
+    /// - `threshold` — minimum signatures required to execute an upgrade; must be > 0
+    ///
+    /// # Panics
+    /// - `"already initialized"` — if called more than once
+    /// - `"threshold must be positive"` — if `threshold == 0`
+    /// - `"insufficient admins for threshold"` — if `admins.len() < threshold`
     pub fn initialize(env: Env, admins: soroban_sdk::Vec<Address>, threshold: u32) {
         if env.storage().instance().has(&DataKey::Admins) {
             panic!("already initialized");
@@ -154,6 +164,10 @@ impl CampaignContract {
             .set(&DataKey::Campaign(campaign_id), &campaign);
     }
 
+    /// Returns the full [`Campaign`] struct for `campaign_id`.
+    ///
+    /// # Panics
+    /// - `"campaign not found"` — if `campaign_id` does not exist
     pub fn get_campaign(env: Env, campaign_id: u64) -> Campaign {
         Self::get_campaign_internal(&env, campaign_id)
     }
@@ -171,6 +185,7 @@ impl CampaignContract {
             .expect("campaign not found")
     }
 
+    /// Returns `true` if the campaign exists, is marked active, and has not expired.
     pub fn is_active(env: Env, campaign_id: u64) -> bool {
         let c = Self::get_campaign_internal(&env, campaign_id);
         c.active && env.ledger().timestamp() < c.expiration
@@ -178,6 +193,18 @@ impl CampaignContract {
 
     // ── Upgrade Mechanism ───────────────────────────────────────────────────
 
+    /// Propose a contract upgrade with the given WASM hash.
+    ///
+    /// The proposing admin's signature is counted as the first authorization.
+    /// The upgrade cannot be executed until the timelock has elapsed and
+    /// `threshold` admins have called `authorize_upgrade`.
+    ///
+    /// # Security
+    /// Requires `admin` to be in the stored admin list (`require_auth` enforced).
+    ///
+    /// # Panics
+    /// - `"upgrade already proposed"` — if a proposal is already pending
+    /// - `"not an admin"` — if `admin` is not in the admin list
     pub fn propose_upgrade(env: Env, admin: Address, wasm_hash: soroban_sdk::BytesN<32>) {
         Self::require_admin(&env, &admin);
         if env.storage().instance().has(&DataKey::UpgradeProposal) {
@@ -197,6 +224,15 @@ impl CampaignContract {
         env.events().publish((UPGRADE_PROPOSED, wasm_hash), admin);
     }
 
+    /// Add `admin`'s authorization to the pending upgrade proposal.
+    ///
+    /// # Security
+    /// Requires `admin` to be in the stored admin list (`require_auth` enforced).
+    ///
+    /// # Panics
+    /// - `"no pending proposal"` — if no upgrade has been proposed
+    /// - `"already authorized by this admin"` — if `admin` has already signed
+    /// - `"not an admin"` — if `admin` is not in the admin list
     pub fn authorize_upgrade(env: Env, admin: Address) {
         Self::require_admin(&env, &admin);
         let mut proposal: UpgradeProposal = env
@@ -216,6 +252,19 @@ impl CampaignContract {
         env.events().publish(UPGRADE_AUTHORIZED, admin);
     }
 
+    /// Execute the pending upgrade once the timelock has elapsed and enough
+    /// admins have authorized it.
+    ///
+    /// Replaces the contract WASM and clears the proposal from storage.
+    ///
+    /// # Security
+    /// Requires `admin` to be in the stored admin list (`require_auth` enforced).
+    ///
+    /// # Panics
+    /// - `"no pending proposal"` — if no upgrade has been proposed
+    /// - `"insufficient authorizations"` — if fewer than `threshold` admins have signed
+    /// - `"timelock not met"` — if the required delay since proposal has not elapsed
+    /// - `"not an admin"` — if `admin` is not in the admin list
     pub fn execute_upgrade(env: Env, admin: Address) {
         Self::require_admin(&env, &admin);
         let proposal: UpgradeProposal = env
@@ -239,6 +288,13 @@ impl CampaignContract {
         env.events().publish(UPGRADE_EXECUTED, proposal.wasm_hash);
     }
 
+    /// Cancel the pending upgrade proposal, allowing a new one to be submitted.
+    ///
+    /// # Security
+    /// Requires `admin` to be in the stored admin list (`require_auth` enforced).
+    ///
+    /// # Panics
+    /// - `"not an admin"` — if `admin` is not in the admin list
     pub fn cancel_upgrade(env: Env, admin: Address) {
         Self::require_admin(&env, &admin);
         env.storage().instance().remove(&DataKey::UpgradeProposal);

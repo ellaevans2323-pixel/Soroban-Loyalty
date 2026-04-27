@@ -102,6 +102,14 @@ impl TokenContract {
 
     // ── Public interface ──────────────────────────────────────────────────────
 
+    /// Mint `amount` LYT tokens to `to`.
+    ///
+    /// # Security
+    /// Requires admin authorization (`require_auth` on the stored admin address).
+    ///
+    /// # Panics
+    /// - `"amount must be positive"` — if `amount <= 0`
+    /// - `"overflow"` — if the recipient balance or total supply would overflow `i128`
     pub fn mint(env: Env, to: Address, amount: i128) {
         Self::require_admin(&env);
         assert!(amount > 0, "amount must be positive");
@@ -123,6 +131,15 @@ impl TokenContract {
             .publish((MINT, symbol_short!("to"), to), (amount, new_supply));
     }
 
+    /// Burn `amount` LYT tokens from `from`, reducing total supply.
+    ///
+    /// # Security
+    /// Requires `from.require_auth()`.
+    ///
+    /// # Panics
+    /// - `"amount must be positive"` — if `amount <= 0`
+    /// - `"insufficient balance"` — if `from`'s balance is less than `amount`
+    /// - `"underflow"` — if total supply would underflow (should never occur in practice)
     pub fn burn(env: Env, from: Address, amount: i128) {
         from.require_auth();
         assert!(amount > 0, "amount must be positive");
@@ -142,6 +159,15 @@ impl TokenContract {
             .publish((BURN, symbol_short!("from"), from), (amount, new_supply));
     }
 
+    /// Transfer `amount` LYT tokens from `from` to `to`.
+    ///
+    /// # Security
+    /// Requires `from.require_auth()`.
+    ///
+    /// # Panics
+    /// - `"amount must be positive"` — if `amount <= 0`
+    /// - `"insufficient balance"` — if `from`'s balance is less than `amount`
+    /// - `"overflow"` — if `to`'s balance would overflow `i128`
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
         from.require_auth();
         assert!(amount > 0, "amount must be positive");
@@ -203,30 +229,40 @@ impl TokenContract {
         Self::get_allowance(&env, &owner, &spender)
     }
 
+    /// Returns the LYT balance of `addr`.
     pub fn balance(env: Env, addr: Address) -> i128 {
         Self::read_balance(&env, &DataKey::Balance(addr))
     }
 
+    /// Returns the current total supply of LYT tokens.
     pub fn total_supply_view(env: Env) -> i128 {
         Self::total_supply(&env)
     }
 
+    /// Returns the current admin address.
     pub fn admin_address(env: Env) -> Address {
         Self::admin(&env)
     }
 
+    /// Returns the token name (e.g. `"LoyaltyToken"`).
     pub fn name(env: Env) -> String {
         env.storage().instance().get(&DataKey::Name).unwrap()
     }
 
+    /// Returns the token ticker symbol (e.g. `"LYT"`).
     pub fn symbol(env: Env) -> String {
         env.storage().instance().get(&DataKey::Symbol).unwrap()
     }
 
+    /// Returns the number of decimal places (e.g. `7`).
     pub fn decimals(env: Env) -> u32 {
         env.storage().instance().get(&DataKey::Decimals).unwrap()
     }
 
+    /// Replace the admin with `new_admin`.
+    ///
+    /// # Security
+    /// Requires current admin authorization.
     pub fn set_admin(env: Env, new_admin: Address) {
         Self::require_admin(&env);
         env.storage().instance().set(&DataKey::Admin, &new_admin);
