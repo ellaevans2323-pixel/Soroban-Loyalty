@@ -20,6 +20,8 @@ pub struct Campaign {
     pub name: Bytes,
     /// Campaign description — max 256 bytes UTF-8
     pub description: Bytes,
+    /// Optional linear vesting period in days (0 = no vesting, immediate release)
+    pub vesting_period_days: u32,
 }
 
 #[contracttype]
@@ -94,6 +96,7 @@ impl CampaignContract {
 
     /// Create a new campaign. Only the merchant (caller) can create it.
     /// `name` max 64 bytes, `description` max 256 bytes.
+    /// `vesting_period_days` = 0 means no vesting (immediate release).
     pub fn create_campaign(
         env: Env,
         merchant: Address,
@@ -101,6 +104,7 @@ impl CampaignContract {
         expiration: u64,
         name: Bytes,
         description: Bytes,
+        vesting_period_days: u32,
     ) -> u64 {
         merchant.require_auth();
         assert!(reward_amount > 0, "reward_amount must be positive");
@@ -122,6 +126,7 @@ impl CampaignContract {
             total_claimed: 0,
             name: name.clone(),
             description: description.clone(),
+            vesting_period_days,
         };
         env.storage()
             .persistent()
@@ -354,7 +359,7 @@ mod tests {
         let (env, admin1, _admin2, client) = setup();
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 86400;
-        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env));
+        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env), &0);
         assert_eq!(id, 1);
         let c = client.get_campaign(&id);
         assert_eq!(c.merchant, merchant);
@@ -369,7 +374,7 @@ mod tests {
         let (env, _admin, client) = setup();
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 86400;
-        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env));
+        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env), &0);
         let (n, d) = client.get_campaign_metadata(&id);
         assert_eq!(n, name(&env));
         assert_eq!(d, desc(&env));
@@ -382,7 +387,7 @@ mod tests {
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 86400;
         let long_name = Bytes::from_slice(env, &[b'x'; 65]);
-        client.create_campaign(&merchant, &100, &expiry, &long_name, &desc(&env));
+        client.create_campaign(&merchant, &100, &expiry, &long_name, &desc(&env), &0);
     }
 
     #[test]
@@ -392,7 +397,7 @@ mod tests {
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 86400;
         let long_desc = Bytes::from_slice(env, &[b'd'; 257]);
-        client.create_campaign(&merchant, &100, &expiry, &name(&env), &long_desc);
+        client.create_campaign(&merchant, &100, &expiry, &name(&env), &long_desc, &0);
     }
 
     #[test]
@@ -400,7 +405,7 @@ mod tests {
     fn test_expired_campaign_rejected() {
         let (env, admin1, _admin2, client) = setup();
         let merchant = Address::generate(&env);
-        client.create_campaign(&merchant, &100, &0, &name(&env), &desc(&env));
+        client.create_campaign(&merchant, &100, &0, &name(&env), &desc(&env), &0);
     }
 
     #[test]
@@ -408,7 +413,7 @@ mod tests {
         let (env, _admin, client) = setup();
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 86400;
-        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env));
+        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env), &0);
         client.set_active(&id, &false);
         assert!(!client.get_campaign(&id).active);
 
@@ -430,7 +435,7 @@ mod tests {
         let (env, _admin, client) = setup();
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 86400;
-        let id = client.create_campaign(&merchant, &100, &expiry);
+        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env), &0);
         client.set_active(&id, &false);
         client.set_active(&id, &true);
         // reactivation emits no event — only 2 total (create + deactivate)
@@ -442,7 +447,7 @@ mod tests {
         let (env, admin1, _admin2, client) = setup();
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 10;
-        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env));
+        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env), &0);
         assert!(client.is_active(&id));
 
         env.ledger().with_mut(|l| l.timestamp = expiry + 1);
