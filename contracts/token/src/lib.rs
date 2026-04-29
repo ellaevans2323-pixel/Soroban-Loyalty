@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(deprecated)] // soroban_sdk::events::Events::publish is deprecated in 25.x; kept for API compatibility
 
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol, Vec,

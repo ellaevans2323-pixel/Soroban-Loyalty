@@ -9,6 +9,7 @@ use soroban_sdk::{
 mod token {
     use soroban_sdk::{contractclient, Address, Env};
 
+    #[allow(dead_code)]
     #[contractclient(name = "TokenClient")]
     pub trait Token {
         fn mint(env: Env, to: Address, amount: i128);
@@ -21,6 +22,9 @@ mod token {
 mod campaign {
     use soroban_sdk::{contractclient, contracttype, Address, Bytes, Env};
 
+    /// Mirrors the on-chain Campaign struct. Fetched in a single `get_campaign`
+    /// call; all fields needed for validation and multiplier calculation are
+    /// available locally after that one round-trip.
     #[contracttype]
     #[derive(Clone)]
     pub struct Campaign {
@@ -36,6 +40,7 @@ mod campaign {
         pub max_claims: soroban_sdk::Option<u64>,
     }
 
+    #[allow(dead_code)]
     #[contractclient(name = "CampaignClient")]
     pub trait CampaignTrait {
         fn is_active(env: Env, campaign_id: u64) -> bool;
@@ -58,6 +63,7 @@ pub enum DataKey {
     /// Kept during migration; removed after migrate() completes.
     ClaimedV1(Address, u64),
     TokenContract,
+    /// Campaign contract address — cached in instance storage at initialize time.
     CampaignContract,
     Admin,
     /// Vesting state for (user, campaign_id)
@@ -139,7 +145,13 @@ impl RewardsContract {
             .set(&DataKey::CampaignContract, &campaign_contract);
     }
 
-    fn token_client(env: &Env) -> token::TokenClient {
+    // ── Cached cross-contract clients ─────────────────────────────────────────
+    //
+    // Addresses are read from instance storage (the cheapest Soroban storage
+    // tier). They are set once at `initialize` time and never change, so
+    // instance storage is the correct tier — no TTL management needed.
+
+    fn token_client(env: &Env) -> token::TokenClient<'_> {
         let addr: Address = env
             .storage()
             .instance()
@@ -148,7 +160,7 @@ impl RewardsContract {
         token::TokenClient::new(env, &addr)
     }
 
-    fn campaign_client(env: &Env) -> campaign::CampaignClient {
+    fn campaign_client(env: &Env) -> campaign::CampaignClient<'_> {
         let addr: Address = env
             .storage()
             .instance()
@@ -201,15 +213,16 @@ impl RewardsContract {
         Self::is_paused(&env)
     }
 
-    /// Returns multiplier in basis points (10000 = 1x, 20000 = 2x).
-    /// Formula: 1 + (expires_at - now) / (expires_at - created_at), capped [1x, 2x].
+    /// Returns multiplier in basis points (10 000 = 1×, 20 000 = 2×).
+    ///
+    /// Computed locally from the already-fetched `Campaign` struct — no extra
+    /// cross-contract call needed.
     fn calc_multiplier(now: u64, created_at: u64, expires_at: u64) -> u64 {
         if now >= expires_at || expires_at <= created_at {
             return 10_000;
         }
         let duration = expires_at - created_at;
         let remaining = expires_at - now;
-        // multiplier_bp = 10000 + 10000 * remaining / duration, capped at 20000
         let extra = 10_000u64 * remaining / duration;
         10_000 + extra.min(10_000)
     }
@@ -230,15 +243,22 @@ impl RewardsContract {
         user.require_auth();
         Self::require_not_paused(&env);
 
-        // Double-claim guard — checked BEFORE any external calls
+        // Double-claim guard — checked BEFORE any external calls.
         assert!(
             !Self::has_claimed(&env, &user, campaign_id),
             "already claimed"
         );
 
+        // OPTIMIZATION: build the campaign client once; reuse it for both
+        // `get_campaign` and `record_claim` without re-reading the address.
         let campaign_client = Self::campaign_client(&env);
+
+        // OPTIMIZATION: single `get_campaign` call replaces the previous
+        // `is_active` + `get_campaign` pair (2 calls → 1 call, -1 round-trip).
+        // Active and expiry checks are performed locally on the returned struct.
+        let campaign: Campaign = campaign_client.get_campaign(&campaign_id);
         assert!(
-            campaign_client.is_active(&campaign_id),
+            campaign.active && env.ledger().timestamp() < campaign.expiration,
             "campaign not active"
         );
 
@@ -253,6 +273,7 @@ impl RewardsContract {
             .persistent()
             .set(&DataKey::Claimed(user.clone(), campaign_id), &record);
 
+        // Compute multiplier locally — no extra cross-contract call needed.
         let multiplier_bp = Self::calc_multiplier(
             env.ledger().timestamp(),
             campaign.created_at,
@@ -260,6 +281,7 @@ impl RewardsContract {
         );
         let final_amount = (campaign.reward_amount * multiplier_bp as i128) / 10_000;
 
+        // Reuse the already-built campaign client (address already loaded).
         campaign_client.record_claim(&campaign_id);
 
         if campaign.vesting_period_days == 0 {
@@ -583,7 +605,7 @@ mod tests {
             &7,
         );
 
-        let campaign_id_addr = env.register_contract(None, CampaignContract);
+        let campaign_id_addr = env.register(CampaignContract, ());
         let campaign =
             soroban_loyalty_campaign::CampaignContractClient::new(&env, &campaign_id_addr);
         let mut campaign_admins = soroban_sdk::Vec::new(&env);
@@ -610,6 +632,48 @@ mod tests {
         t.campaign.create_campaign(merchant, &reward, &expiry, &name, &desc, &vesting_days, &soroban_sdk::Option::None)
     }
 
+    // ── Optimization regression tests ─────────────────────────────────────────
+
+    /// Verify cached contract addresses are stored and retrievable.
+    #[test]
+    fn test_cached_contract_addresses() {
+        let t = setup();
+        assert_eq!(t.rewards.token_contract(), t.token.address);
+        assert_eq!(t.rewards.campaign_contract(), t.campaign.address);
+    }
+
+    /// Verify active/expiry validation still works after removing the separate
+    /// `is_active` cross-contract call (now checked locally from Campaign struct).
+    #[test]
+    #[should_panic(expected = "campaign not active")]
+    fn test_local_active_check_rejects_inactive() {
+        let t = setup();
+        let merchant = Address::generate(&t.env);
+        let user = Address::generate(&t.env);
+        let cid = make_campaign(&t, &merchant, 500);
+        t.campaign.set_active(&cid, &false);
+        t.rewards.claim_reward(&user, &cid);
+    }
+
+    /// Verify expiry is checked locally from the fetched Campaign struct.
+    #[test]
+    #[should_panic(expected = "campaign not active")]
+    fn test_local_expiry_check_rejects_expired() {
+        let t = setup();
+        let merchant = Address::generate(&t.env);
+        let user = Address::generate(&t.env);
+        let expiry = t.env.ledger().timestamp() + 10;
+        let name = soroban_sdk::Bytes::from_slice(&t.env, b"Test Campaign");
+        let desc = soroban_sdk::Bytes::from_slice(&t.env, b"Test description");
+        let cid = t
+            .campaign
+            .create_campaign(&merchant, &500, &expiry, &name, &desc);
+        t.env.ledger().with_mut(|l| l.timestamp = expiry + 1);
+        t.rewards.claim_reward(&user, &cid);
+    }
+
+    // ── Core functionality tests ──────────────────────────────────────────────
+
     #[test]
     fn test_claim_mints_tokens() {
         let t = setup();
@@ -619,7 +683,7 @@ mod tests {
         let cid = make_campaign(&t, &merchant, 500);
         t.rewards.claim_reward(&user, &cid);
 
-        // At t=0 (start), multiplier is 2x → 500 * 2 = 1000
+        // At t=0 (start of campaign), multiplier is 2x → 500 * 2 = 1000
         assert_eq!(t.token.balance(&user), 1000);
         assert!(t.rewards.has_claimed_view(&user, &cid));
 

@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(deprecated)] // soroban_sdk::events::Events::publish is deprecated in 25.x; kept for API compatibility
 
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, Address, Bytes, Env, Symbol,
@@ -99,27 +100,27 @@ impl CampaignContract {
             panic!("already initialized");
         }
         assert!(threshold > 0, "threshold must be positive");
-        assert!(admins.len() >= threshold, "insufficient admins for threshold");
+        assert!(
+            admins.len() >= threshold,
+            "insufficient admins for threshold"
+        );
 
         env.storage().instance().set(&DataKey::Admins, &admins);
-        env.storage().instance().set(&DataKey::Threshold, &threshold);
+        env.storage()
+            .instance()
+            .set(&DataKey::Threshold, &threshold);
         env.storage().instance().set(&DataKey::NextId, &1_u64);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     fn next_id(env: &Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&DataKey::NextId)
-            .unwrap_or(1)
+        env.storage().instance().get(&DataKey::NextId).unwrap_or(1)
     }
 
     fn bump_id(env: &Env) -> u64 {
         let id = Self::next_id(env);
-        env.storage()
-            .instance()
-            .set(&DataKey::NextId, &(id + 1));
+        env.storage().instance().set(&DataKey::NextId, &(id + 1));
         id
     }
 
@@ -330,7 +331,9 @@ impl CampaignContract {
             signatures,
         };
 
-        env.storage().instance().set(&DataKey::UpgradeProposal, &proposal);
+        env.storage()
+            .instance()
+            .set(&DataKey::UpgradeProposal, &proposal);
         env.events().publish((UPGRADE_PROPOSED, wasm_hash), admin);
     }
 
@@ -393,7 +396,8 @@ impl CampaignContract {
             "timelock not met"
         );
 
-        env.deployer().update_current_contract_wasm(proposal.wasm_hash.clone());
+        env.deployer()
+            .update_current_contract_wasm(proposal.wasm_hash.clone());
         env.storage().instance().remove(&DataKey::UpgradeProposal);
         env.events().publish((UPGRADE_EXECUTED,), proposal.wasm_hash);
     }
@@ -413,7 +417,8 @@ impl CampaignContract {
 
     fn require_admin(env: &Env, admin: &Address) {
         admin.require_auth();
-        let admins: soroban_sdk::Vec<Address> = env.storage().instance().get(&DataKey::Admins).unwrap();
+        let admins: soroban_sdk::Vec<Address> =
+            env.storage().instance().get(&DataKey::Admins).unwrap();
         let mut is_admin = false;
         for a in admins.iter() {
             if a == *admin {
@@ -436,8 +441,8 @@ mod expiry_prop_tests;
 mod tests {
     use super::*;
     use soroban_sdk::{
-        testutils::{Address as _, Ledger},
-        Bytes, Env,
+        testutils::{Address as _, Events, Ledger},
+        vec, Bytes, Env, IntoVal,
     };
 
     fn setup() -> (Env, Address, Address, CampaignContractClient<'static>) {
@@ -445,7 +450,7 @@ mod tests {
         env.mock_all_auths();
         let admin1 = Address::generate(&env);
         let admin2 = Address::generate(&env);
-        let contract_id = env.register_contract(None, CampaignContract);
+        let contract_id = env.register(CampaignContract, ());
         let client = CampaignContractClient::new(&env, &contract_id);
         let mut admins = soroban_sdk::Vec::new(&env);
         admins.push_back(admin1.clone());
@@ -597,16 +602,10 @@ mod tests {
         let (env, admin1, admin2, client) = setup();
         let wasm_hash = soroban_sdk::BytesN::from_array(&env, &[0u8; 32]);
 
-        // Propose
         client.propose_upgrade(&admin1, &wasm_hash);
-
-        // Authorize (need 2nd signature for threshold 2)
         client.authorize_upgrade(&admin2);
 
-        // Advance time for timelock (48h)
         env.ledger().with_mut(|l| l.timestamp += TIMELOCK + 1);
-
-        // Execute
         client.execute_upgrade(&admin1);
     }
 
@@ -618,8 +617,6 @@ mod tests {
 
         client.propose_upgrade(&admin1, &wasm_hash);
         client.authorize_upgrade(&admin2);
-
-        // Try to execute before 48h
         client.execute_upgrade(&admin1);
     }
 
@@ -630,8 +627,6 @@ mod tests {
         let wasm_hash = soroban_sdk::BytesN::from_array(&env, &[0u8; 32]);
 
         client.propose_upgrade(&admin1, &wasm_hash);
-        // missing 2nd signature
-
         env.ledger().with_mut(|l| l.timestamp += TIMELOCK + 1);
         client.execute_upgrade(&admin1);
     }
@@ -643,8 +638,6 @@ mod tests {
 
         client.propose_upgrade(&admin1, &wasm_hash);
         client.cancel_upgrade(&admin1);
-
-        // Verify it's gone (should be able to propose again)
         client.propose_upgrade(&admin1, &wasm_hash);
     }
 
