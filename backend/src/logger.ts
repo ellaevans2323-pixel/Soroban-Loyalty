@@ -1,10 +1,8 @@
 import { Request } from "express";
+import { env } from "./env";
 import { getCorrelationId } from "./correlation";
 
-const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
-const MAINTENANCE_MODE = process.env.MAINTENANCE_MODE === "true";
-
-export type AlertLevel = "critical" | "error" | "warn" | "info";
+export type AlertLevel = "critical" | "error" | "warn" | "info" | "debug";
 
 interface AlertPayload {
   level: AlertLevel;
@@ -14,7 +12,7 @@ interface AlertPayload {
 }
 
 async function sendSlackAlert(payload: AlertPayload): Promise<void> {
-  if (!SLACK_WEBHOOK_URL || MAINTENANCE_MODE) return;
+  if (!env.SLACK_WEBHOOK_URL || env.MAINTENANCE_MODE) return;
   const { level, message, error, context } = payload;
   const emoji = level === "critical" ? "🚨" : "⚠️";
   const runbook = "https://github.com/Dev-Odun-oss/Soroban-Loyalty/wiki/Runbooks";
@@ -29,7 +27,7 @@ async function sendSlackAlert(payload: AlertPayload): Promise<void> {
     .join("\n");
 
   try {
-    await fetch(SLACK_WEBHOOK_URL, {
+    await fetch(env.SLACK_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
@@ -45,6 +43,10 @@ function withCorrelation(obj: Record<string, unknown>): Record<string, unknown> 
 }
 
 export const logger = {
+  debug(message: string, context?: Record<string, unknown>) {
+    console.debug(JSON.stringify(withCorrelation({ level: "debug", message, ...context, ts: new Date().toISOString() })));
+  },
+
   info(message: string, context?: Record<string, unknown>) {
     console.log(JSON.stringify(withCorrelation({ level: "info", message, ...context, ts: new Date().toISOString() })));
   },
