@@ -133,6 +133,40 @@ impl RewardsContract {
                 .has(&DataKey::ClaimedV1(user.clone(), campaign_id))
     }
 
+    // ── Pause helpers ─────────────────────────────────────────────────────────
+
+    fn require_admin(env: &Env) {
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        admin.require_auth();
+    }
+
+    fn is_paused(env: &Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
+    }
+
+    fn require_not_paused(env: &Env) {
+        assert!(!Self::is_paused(env), "contract is paused");
+    }
+
+    pub fn emergency_pause(env: Env) {
+        Self::require_admin(&env);
+        env.storage().instance().set(&DataKey::Paused, &true);
+        env.events().publish((PAUSED,), ());
+    }
+
+    pub fn emergency_unpause(env: Env) {
+        Self::require_admin(&env);
+        env.storage().instance().set(&DataKey::Paused, &false);
+        env.events().publish((UNPAUSED,), ());
+    }
+
+    pub fn paused(env: Env) -> bool {
+        Self::is_paused(&env)
+    }
+
     /// Returns multiplier in basis points (10000 = 1x, 20000 = 2x).
     /// Formula: 1 + (expires_at - now) / (expires_at - created_at), capped [1x, 2x].
     fn calc_multiplier(now: u64, created_at: u64, expires_at: u64) -> u64 {
@@ -148,6 +182,7 @@ impl RewardsContract {
 
     pub fn claim_reward(env: Env, user: Address, campaign_id: u64) {
         user.require_auth();
+        Self::require_not_paused(&env);
 
         // Double-claim guard — checked BEFORE any external calls
         assert!(
@@ -259,6 +294,7 @@ impl RewardsContract {
 
     pub fn redeem_reward(env: Env, user: Address, amount: i128) {
         user.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount > 0, "amount must be positive");
 
         Self::token_client(&env).burn(&user, &amount);

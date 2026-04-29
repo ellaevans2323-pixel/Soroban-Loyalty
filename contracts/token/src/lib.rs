@@ -45,6 +45,8 @@ const MINT: Symbol = symbol_short!("MINT");
 const TRANSFER: Symbol = symbol_short!("TRANSFER");
 const BURN: Symbol = symbol_short!("BURN");
 const APPROVAL: Symbol = symbol_short!("APPROVAL");
+const PAUSED: Symbol = symbol_short!("PAUSED");
+const UNPAUSED: Symbol = symbol_short!("UNPAUSED");
 
 // ── Contract ──────────────────────────────────────────────────────────────────
 
@@ -222,6 +224,7 @@ impl TokenContract {
 
     pub fn burn(env: Env, from: Address, amount: i128) {
         from.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount > 0, "amount must be positive");
 
         let key = DataKey::Balance(from.clone());
@@ -237,6 +240,7 @@ impl TokenContract {
 
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
         from.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount > 0, "amount must be positive");
 
         let from_key = DataKey::Balance(from.clone());
@@ -253,6 +257,7 @@ impl TokenContract {
 
     pub fn approve(env: Env, owner: Address, spender: Address, amount: i128) {
         owner.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount >= 0, "amount must be non-negative");
         Self::set_allowance(&env, &owner, &spender, amount);
         env.events().publish((APPROVAL, symbol_short!("owner"), owner), (spender, amount));
@@ -260,6 +265,7 @@ impl TokenContract {
 
     pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
+        Self::require_not_paused(&env);
         assert!(amount > 0, "amount must be positive");
 
         let current = Self::get_allowance(&env, &from, &spender);
@@ -435,5 +441,47 @@ mod tests {
         client.burn(&alice, &100);
         assert_eq!(client.balance(&alice), 200);
         assert_eq!(client.total_supply_view(), 400);
+    }
+
+    // ── Pause tests ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_pause_and_unpause() {
+        let (_env, _admin, client) = setup();
+        assert!(!client.paused());
+        client.emergency_pause();
+        assert!(client.paused());
+        client.emergency_unpause();
+        assert!(!client.paused());
+    }
+
+    #[test]
+    #[should_panic(expected = "contract is paused")]
+    fn test_mint_blocked_when_paused() {
+        let (env, _admin, client) = setup();
+        let user = Address::generate(&env);
+        client.emergency_pause();
+        client.mint(&user, &100);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract is paused")]
+    fn test_transfer_blocked_when_paused() {
+        let (env, _admin, client) = setup();
+        let alice = Address::generate(&env);
+        let bob = Address::generate(&env);
+        client.mint(&alice, &500);
+        client.emergency_pause();
+        client.transfer(&alice, &bob, &100);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract is paused")]
+    fn test_burn_blocked_when_paused() {
+        let (env, _admin, client) = setup();
+        let user = Address::generate(&env);
+        client.mint(&user, &300);
+        client.emergency_pause();
+        client.burn(&user, &100);
     }
 }
