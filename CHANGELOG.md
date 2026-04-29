@@ -1,3 +1,10 @@
+# [1.33.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.32.0...v1.33.0) (2026-04-29)
+
+
+### Features
+
+* implement RBAC with Admin/Minter/Pauser/Recorder roles across all contracts ([131abb1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/131abb1347866e75cf805d80c3f0a1ee6145ea62)), closes [#123](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/123)
+
 # [1.32.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.31.0...v1.32.0) (2026-04-29)
 
 
