@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.28.0...v1.29.0) (2026-04-29)
+
+
+### Features
+
+* add Sentry error monitoring for frontend and backend ([ef5d43b](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/ef5d43bc382645ccf91dc5a1c511b4275c87db95)), closes [#71](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/71)
+
 # [1.28.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.27.1...v1.28.0) (2026-04-29)
 
 
