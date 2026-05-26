@@ -1,0 +1,31 @@
+# .gitleaks.toml — secret scanning configuration for gitleaks / trufflehog
+# Used by the pre-commit hook and CI secret-scan job.
+
+title = "Soroban Loyalty Secret Scan"
+
+[extend]
+# Extend the default ruleset
+useDefault = true
+
+[[rules]]
+id = "stellar-secret-key"
+description = "Stellar/Soroban secret key (starts with S)"
+regex = '''S[A-Z2-7]{55}'''
+tags = ["stellar", "key", "secret"]
+
+[[rules]]
+id = "change-me-placeholder"
+description = "Unfilled CHANGE_ME placeholder committed to code"
+regex = '''CHANGE_ME'''
+tags = ["placeholder", "secret"]
+[rules.allowlist]
+paths = [".env.example", "docs/"]
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  ".env.example",
+  "Cargo.lock",
+  "package-lock.json",
+  "*.md",
+]
