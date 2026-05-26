@@ -586,3 +586,74 @@ For production, consider a dedicated RPC node via
 [Validation Cloud](https://validationcloud.io/),
 [NOWNodes](https://nownodes.io/), or running your own
 [stellar/quickstart](https://github.com/stellar/quickstart) container.
+
+
+---
+
+## 9. Secrets Management
+
+Variables marked **SECRET** in `.env.example` must never be committed to the
+repository. Use one of the following approaches in production.
+
+### Recommended: AWS Secrets Manager
+
+Store all secrets as a single JSON object in AWS Secrets Manager and reference
+it via `SECRETS_ARN`. The backend's `src/secrets.ts` loads the secret at
+startup and injects values into `process.env` before env validation runs.
+
+```bash
+# Create the secret (one-time)
+aws secretsmanager create-secret \
+  --name soroban-loyalty/production \
+  --secret-string '{
+    "DATABASE_URL": "postgres://...",
+    "JWT_SECRET": "...",
+    "SENTRY_AUTH_TOKEN": "...",
+    "SLACK_WEBHOOK_URL": "..."
+  }'
+
+# Reference it in your deployment
+SECRETS_ARN=arn:aws:secretsmanager:us-east-1:123456789:secret:soroban-loyalty/production
+```
+
+### Alternative: Doppler
+
+```bash
+doppler setup          # link project
+doppler run -- npm start
+```
+
+### GitHub Actions Secrets
+
+All CI/CD credentials are stored as GitHub Actions secrets (never in workflow
+YAML files). Required secrets:
+
+| Secret name            | Used by                        |
+|------------------------|--------------------------------|
+| `DATABASE_URL`         | backend-ci, e2e                |
+| `SENTRY_AUTH_TOKEN`    | frontend build                 |
+| `SLACK_WEBHOOK_URL`    | alerting workflow              |
+| `AWS_ACCESS_KEY_ID`    | deploy-staging, terraform      |
+| `AWS_SECRET_ACCESS_KEY`| deploy-staging, terraform      |
+
+### Pre-commit Secret Scanning
+
+Install the pre-commit hook to catch secrets before they reach the repository:
+
+```bash
+cp scripts/pre-commit-secret-scan.sh .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+The hook uses [gitleaks](https://github.com/gitleaks/gitleaks) when available,
+falling back to grep-based pattern matching. CI also runs a secret scan on every
+PR via the `secret-scan` job in `.github/workflows/ci.yml`.
+
+```bash
+# Install gitleaks (macOS)
+brew install gitleaks
+
+# Install gitleaks (Linux)
+curl -sSfL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_linux_x64.tar.gz \
+  | tar -xz -C /usr/local/bin gitleaks
+```

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { getTransactionsByUser } from "../services/transaction.service";
+import { isValidStellarAddress } from "../utils/validation";
 
 export const transactionRouter = Router();
 
@@ -12,7 +13,7 @@ transactionRouter.get("/user/:address/transactions", async (req: Request, res: R
   const limit = parseInt(req.query.limit as string) || 20;
   const offset = parseInt(req.query.offset as string) || 0;
 
-  if (!address || address.length !== 56) {
+  if (!isValidStellarAddress(address)) {
     return res.status(400).json({ error: "Invalid Stellar address" });
   }
 
