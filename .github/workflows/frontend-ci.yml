@@ -63,6 +63,7 @@ jobs:
           output: trivy-frontend.sarif
           severity: HIGH,CRITICAL
           exit-code: "1"
+          trivyignores: .trivyignore
 
       - name: Upload Trivy SARIF to GitHub Security
         if: always()
