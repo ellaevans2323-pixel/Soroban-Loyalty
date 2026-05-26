@@ -15,7 +15,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",
     "@aws-sdk/client-secrets-manager": "^3.600.0",
-    "@stellar/stellar-sdk": "^15.0.1",
+    "@stellar/stellar-sdk": "^15.1.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
