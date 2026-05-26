@@ -1,9 +1,6 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
-    restart: unless-stopped
     environment:
       POSTGRES_USER: loyalty
       POSTGRES_PASSWORD: loyalty_secret
@@ -17,19 +14,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    # Resource limits: postgres is the most resource-intensive service
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1024M
-        reservations:
-          cpus: "0.25"
-          memory: 256M
 
   redis:
     image: redis:7-alpine
-    restart: unless-stopped
     ports:
       - "6379:6379"
     healthcheck:
@@ -37,19 +24,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 128M
-        reservations:
-          cpus: "0.05"
-          memory: 32M
 
   soroban-local:
     image: stellar/quickstart:latest
     platform: linux/amd64
-    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
@@ -62,21 +40,11 @@ services:
       timeout: 10s
       retries: 20
       start_period: 30s
-    # Resource limits: local Stellar node — moderate usage
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,22 +68,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    # Resource limits: backend + indexer — 512MB cap prevents indexer memory leaks
-    # from consuming host resources. OOM kills will appear in `docker inspect` State.OOMKilled.
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
@@ -127,19 +84,9 @@ services:
       NEXT_PUBLIC_CAMPAIGN_CONTRACT_ID: ${CAMPAIGN_CONTRACT_ID:-}
     ports:
       - "3000:3000"
-    # Resource limits: Next.js SSR — 256MB is sufficient for static/SSR pages
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 256M
-        reservations:
-          cpus: "0.05"
-          memory: 64M
 
   prometheus:
     image: prom/prometheus:v2.51.2
-    restart: unless-stopped
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
@@ -155,7 +102,6 @@ services:
 
   alertmanager:
     image: prom/alertmanager:v0.27.0
-    restart: unless-stopped
     volumes:
       - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     command:
@@ -167,7 +113,6 @@ services:
 
   grafana:
     image: grafana/grafana:10.4.2
-    restart: unless-stopped
     depends_on:
       - prometheus
     environment:
@@ -184,7 +129,6 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
-    restart: unless-stopped
     environment:
       discovery.type: single-node
       xpack.security.enabled: "true"
@@ -199,15 +143,10 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1024M
+
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.13.0
-    restart: unless-stopped
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -220,15 +159,10 @@ services:
       - ./monitoring/elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
     ports:
       - "5044:5044"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
+
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.13.0
-    restart: unless-stopped
     user: root
     depends_on:
       elasticsearch:
@@ -241,15 +175,10 @@ services:
       - ./monitoring/elk/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 256M
+
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.13.0
-    restart: unless-stopped
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -259,11 +188,6 @@ services:
       ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:-changeme}
     ports:
       - "5601:5601"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
 
 volumes:
   postgres_data:
