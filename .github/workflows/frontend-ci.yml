@@ -35,7 +35,15 @@ jobs:
         run: npm run lint
 
       - name: Test
-        run: npm test -- --ci
+        run: npm test -- --ci --coverage
+
+      - name: Upload test coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-test-coverage
+          path: frontend/coverage/
+          retention-days: 7
 
   trivy-scan:
     name: Trivy Image Scan

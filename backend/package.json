@@ -8,7 +8,7 @@
     "dev": "ts-node-dev --respawn src/index.ts",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
+    "test": "jest --coverage",
     "test:integration": "NODE_ENV=test jest --config jest.integration.config.ts --runInBand --coverage",
     "test:reward-query-plan": "NODE_ENV=test jest src/services/__tests__/reward.service.test.ts --runInBand"
   },
