@@ -77,7 +77,15 @@ cp .env.example .env
 ### 2. Run with Docker
 
 ```bash
-docker-compose up --build
+docker compose up --build
+```
+
+This command automatically picks up `docker-compose.override.yml` for development-only settings such as local source mounts and dev commands.
+
+For production-style startup, use:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 ```
 
 Services:
@@ -90,7 +98,7 @@ Services:
 
 **Start PostgreSQL** (or use Docker just for DB):
 ```bash
-docker-compose up postgres -d
+docker compose up postgres -d
 ```
 
 **Backend:**
