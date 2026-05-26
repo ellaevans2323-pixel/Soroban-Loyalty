@@ -1,3 +1,11 @@
+# [1.37.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.36.0...v1.37.0) (2026-05-26)
+
+
+### Features
+
+* add coverage reporting and 70% threshold enforcement ([66cb446](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/66cb44686e46c206f1ba9f81bd63b63e90b35925))
+* add XSS prevention - backend sanitization and frontend tests ([00d5e9b](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/00d5e9b2dd6250150b7f039b34a85df9ce148888)), closes [#401](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/401)
+
 # [1.36.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.35.0...v1.36.0) (2026-05-26)
 
 
