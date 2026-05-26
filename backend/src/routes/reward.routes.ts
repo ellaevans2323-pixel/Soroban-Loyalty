@@ -2,9 +2,13 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { createRewardClaim, DuplicateClaimError, getRewardsByUser } from "../services/reward.service";
 import { asyncHandler } from "../middleware/errorHandler";
+import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
+import { StellarAddressSchema } from "./schemas";
 
 export const rewardRouter = Router();
+
+// Route-specific validation schemas
 const ClaimSchema = z.object({
   campaign_id: z.number().int().positive(),
   amount: z.number().int().positive(),
@@ -43,47 +47,37 @@ const ClaimSchema = z.object({
  *       500:
  *         description: Server error.
  */
-rewardRouter.get("/user/:address/rewards", asyncHandler(async (req: Request, res: Response) => {
-  const address = String(req.params.address);
-  if (!address || address.length !== 56) {
-    throw new BadRequestError("Invalid Stellar address", { address });
-  }
-  try {
-    const rewards = await getRewardsByUser(address);
-    res.json({ rewards });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch rewards" });
-  }
+rewardRouter.get("/user/:address/rewards", validateParams(StellarAddressSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { address } = req.params as any;
+  const rewards = await getRewardsByUser(address);
+  res.json({ rewards });
 }));
 
 /**
  * POST /user/:address/rewards/claim
  * Inserts a reward claim once per (user, campaign). Duplicate claims return 409.
  */
-rewardRouter.post("/user/:address/rewards/claim", async (req: Request, res: Response) => {
-  const address = String(req.params.address);
-  if (!address || address.length !== 56) {
-    return res.status(400).json({ error: "Invalid Stellar address" });
-  }
+rewardRouter.post("/user/:address/rewards/claim", 
+  validateParams(StellarAddressSchema), 
+  validateBody(ClaimSchema), 
+  asyncHandler(async (req: Request, res: Response) => {
+    const { address } = req.params as any;
+    const { campaign_id, amount } = req.body;
 
-  const parsed = ClaimSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "campaign_id and amount must be positive integers" });
-  }
-
-  try {
-    await createRewardClaim({
-      user_address: address,
-      campaign_id: parsed.data.campaign_id,
-      amount: parsed.data.amount,
-      redeemed: false,
-      redeemed_amount: 0,
-    });
-    return res.status(201).json({ ok: true });
-  } catch (err) {
-    if (err instanceof DuplicateClaimError) {
-      return res.status(409).json({ error: err.message });
+    try {
+      await createRewardClaim({
+        user_address: address,
+        campaign_id,
+        amount,
+        redeemed: false,
+        redeemed_amount: 0,
+      });
+      res.status(201).json({ ok: true });
+    } catch (err) {
+      if (err instanceof DuplicateClaimError) {
+        return res.status(409).json({ error: err.message });
+      }
+      throw err;
     }
-    return res.status(500).json({ error: "Failed to claim reward" });
-  }
-});
+  })
+);

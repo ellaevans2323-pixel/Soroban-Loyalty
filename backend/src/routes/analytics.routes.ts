@@ -1,8 +1,15 @@
 import { Router, Request, Response } from "express";
+import { z } from "zod";
 import { getAnalytics } from "../services/analytics.service";
 import { asyncHandler } from "../middleware/errorHandler";
+import { validateQuery } from "../middleware/validation";
 
 export const analyticsRouter = Router();
+
+// Validation schema for analytics query
+const AnalyticsQuerySchema = z.object({
+  days: z.string().optional().transform(val => Math.min(Math.max(parseInt(val || "30", 10) || 30, 1), 365))
+});
 
 /**
  * @openapi
@@ -31,8 +38,8 @@ export const analyticsRouter = Router();
  *         description: Server error.
  */
 
-analyticsRouter.get("/", async (req: Request, res: Response) => {
-  const days = Math.min(Math.max(parseInt(req.query.days as string, 10) || 30, 1), 365);
+analyticsRouter.get("/", validateQuery(AnalyticsQuerySchema), asyncHandler(async (req: Request, res: Response) => {
+  const { days } = req.query as any;
   const data = await getAnalytics(days);
   res.json(data);
-});
+}));

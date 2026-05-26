@@ -11,9 +11,33 @@ import {
 import { redisClient } from "../lib/redis";
 import { logger } from "../logger";
 import { asyncHandler } from "../middleware/errorHandler";
+import { validateBody, validateParams, validateQuery } from "../middleware/validation";
 import { BadRequestError, NotFoundError } from "../utils/errors";
+import { IdParamsSchema } from "./schemas";
 
 export const campaignRouter = Router();
+
+// Route-specific validation schemas
+const CampaignQuerySchema = z.object({
+  limit: z.string().optional().transform(val => Math.min(parseInt(val || "20", 10) || 20, 100)),
+  offset: z.string().optional().transform(val => parseInt(val || "0", 10) || 0),
+  search: z.string().optional(),
+  status: z.enum(["active", "inactive"]).optional(),
+  expires_before: z.string().optional().transform(val => {
+    if (!val) return undefined;
+    const num = parseInt(val, 10);
+    return isNaN(num) ? undefined : num;
+  }),
+  expires_after: z.string().optional().transform(val => {
+    if (!val) return undefined;
+    const num = parseInt(val, 10);
+    return isNaN(num) ? undefined : num;
+  })
+});
+
+const ReorderSchema = z.object({
+  order: z.array(z.number().int().positive()),
+});
 
 /**
  * @openapi
@@ -79,9 +103,8 @@ export const campaignRouter = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-campaignRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
-  const limit = Math.min(parseInt(String(req.query.limit ?? "20"), 10) || 20, 100);
-  const offset = parseInt(String(req.query.offset ?? "0"), 10) || 0;
+campaignRouter.get("/", validateQuery(CampaignQuerySchema), asyncHandler(async (req: Request, res: Response) => {
+  const { limit, offset, search, status, expires_before, expires_after } = req.query as any;
   
   const cacheKey = `campaigns:list:${limit}:${offset}`;
   try {
@@ -95,7 +118,14 @@ campaignRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
   }
 
   logger.debug(`Cache miss for ${cacheKey}`);
-  const result = await getCampaigns(limit, offset);
+  
+  const filters: CampaignFilters = {};
+  if (search) filters.search = search;
+  if (status) filters.status = status;
+  if (expires_before) filters.expires_before = expires_before;
+  if (expires_after) filters.expires_after = expires_after;
+
+  const result = await getCampaigns(limit, offset, filters);
   
   try {
     await redisClient.setex(cacheKey, 30, JSON.stringify(result));
@@ -103,22 +133,6 @@ campaignRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
     logger.error("Redis cache write error", err as Error);
   }
 
-
-  const filters: CampaignFilters = {};
-  if (req.query.search) filters.search = String(req.query.search);
-  if (req.query.status === "active" || req.query.status === "inactive") {
-    filters.status = req.query.status;
-  }
-  if (req.query.expires_before) {
-    const v = parseInt(String(req.query.expires_before), 10);
-    if (!isNaN(v)) filters.expires_before = v;
-  }
-  if (req.query.expires_after) {
-    const v = parseInt(String(req.query.expires_after), 10);
-    if (!isNaN(v)) filters.expires_after = v;
-  }
-
-  const result = await getCampaigns(limit, offset, filters);
   res.json(result);
 }));
 
@@ -153,21 +167,14 @@ campaignRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
  *       500:
  *         description: Server error.
  */
-campaignRouter.get("/:id", asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) {
-    throw new BadRequestError("Invalid id", { id: req.params.id });
-  }
+campaignRouter.get("/:id", validateParams(IdParamsSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params as any;
   const campaign = await getCampaignById(id);
   if (!campaign) {
     throw new NotFoundError("Campaign");
   }
   res.json({ campaign });
 }));
-
-const ReorderSchema = z.object({
-  order: z.array(z.number().int().positive()),
-});
 
 /**
  * @openapi
@@ -204,12 +211,9 @@ const ReorderSchema = z.object({
  *       500:
  *         description: Server error.
  */
-campaignRouter.patch("/reorder", asyncHandler(async (req: Request, res: Response) => {
-  const parsed = ReorderSchema.safeParse(req.body);
-  if (!parsed.success) {
-    throw new BadRequestError("Invalid request body", { errors: parsed.error.errors });
-  }
-  await reorderCampaigns(parsed.data.order);
+campaignRouter.patch("/reorder", validateBody(ReorderSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { order } = req.body;
+  await reorderCampaigns(order);
   res.json({ ok: true });
 }));
 
@@ -217,30 +221,24 @@ campaignRouter.patch("/reorder", asyncHandler(async (req: Request, res: Response
  * DELETE /campaigns/:id
  * Soft-deletes a campaign by setting deleted_at.
  */
-campaignRouter.delete("/:id", async (req: Request, res: Response) => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
-  try {
-    const deleted = await softDeleteCampaign(id);
-    if (!deleted) return res.status(404).json({ error: "Not found" });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to delete campaign" });
+campaignRouter.delete("/:id", validateParams(IdParamsSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params as any;
+  const deleted = await softDeleteCampaign(id);
+  if (!deleted) {
+    throw new NotFoundError("Campaign");
   }
-});
+  res.json({ ok: true });
+}));
 
 /**
  * POST /campaigns/:id/restore
  * Restores a soft-deleted campaign.
  */
-campaignRouter.post("/:id/restore", async (req: Request, res: Response) => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
-  try {
-    const restored = await restoreCampaign(id);
-    if (!restored) return res.status(404).json({ error: "Not found or not deleted" });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to restore campaign" });
+campaignRouter.post("/:id/restore", validateParams(IdParamsSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params as any;
+  const restored = await restoreCampaign(id);
+  if (!restored) {
+    throw new NotFoundError("Campaign not found or not deleted");
   }
-});
+  res.json({ ok: true });
+}));
