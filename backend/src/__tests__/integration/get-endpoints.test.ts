@@ -114,6 +114,13 @@ describe("GET endpoints integration", () => {
     expect(response.body.error).toMatch(/invalid id/i);
   });
 
+  it("GET /campaigns/:id rejects SQL injection payload in path param", async () => {
+    const response = await request(app).get("/campaigns/1 OR 1=1");
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/invalid id/i);
+  });
+
   it("GET /campaigns/:id returns 404 for unknown id", async () => {
     const response = await request(app).get("/campaigns/999999");
 
@@ -134,6 +141,31 @@ describe("GET endpoints integration", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toMatch(/invalid stellar address/i);
+  });
+
+  it("GET /user/:address/rewards rejects SQL injection-style address payload", async () => {
+    const maliciousAddress = `G${"A".repeat(54)}0`;
+    const response = await request(app).get(`/user/${maliciousAddress}/rewards`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/invalid stellar address/i);
+  });
+
+  it("GET /campaigns?search doesn't expose all rows for SQL injection payload", async () => {
+    const response = await request(app).get("/campaigns?search=' OR '1'='1");
+
+    expect(response.status).toBe(200);
+    expect(response.body.total).toBe(0);
+    expect(response.body.campaigns).toHaveLength(0);
+  });
+
+  it("PATCH /campaigns/reorder rejects SQL injection-style request body", async () => {
+    const response = await request(app)
+      .patch("/campaigns/reorder")
+      .send({ order: ["1 OR 1=1", 2] });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/invalid request body/i);
   });
 
   it("GET /analytics returns aggregate data for valid days", async () => {
