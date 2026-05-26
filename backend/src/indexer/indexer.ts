@@ -7,6 +7,7 @@ import { rpcServer } from "../soroban";
 import { upsertCampaign } from "../services/campaign.service";
 import { upsertReward, recordTransaction } from "../services/reward.service";
 import { pool } from "../db";
+import { logger } from "../logger";
 
 const REWARDS_CONTRACT = process.env.REWARDS_CONTRACT_ID ?? "";
 const CAMPAIGN_CONTRACT = process.env.CAMPAIGN_CONTRACT_ID ?? "";
@@ -71,7 +72,7 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
       tx_hash: event.txHash,
     });
     await recordTransaction(event.txHash, "campaign_created", merchant, id, null, event.ledger);
-    console.log(`[indexer] CampaignCreated id=${id} merchant=${merchant}`);
+    logger.info("CampaignCreated", { id, merchant });
   }
 
   if (event.contractId === REWARDS_CONTRACT && eventName === "RWD_CLM") {
@@ -82,7 +83,7 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
     const amount = decodeI128(valueVec[1]);
     await upsertReward({ user_address: user, campaign_id: campaignId, amount, redeemed: false, redeemed_amount: 0 });
     await recordTransaction(event.txHash, "claim", user, campaignId, amount, event.ledger);
-    console.log(`[indexer] RewardClaimed user=${user} campaign=${campaignId} amount=${amount}`);
+    logger.info("RewardClaimed", { user, campaignId, amount });
   }
 
   if (event.contractId === REWARDS_CONTRACT && eventName === "RWD_RDM") {
@@ -90,13 +91,13 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
     const user = decodeAddress(topics[2]);
     const amount = decodeI128(xdr.ScVal.fromXDR(event.value, "base64"));
     await recordTransaction(event.txHash, "redeem", user, null, amount, event.ledger);
-    console.log(`[indexer] RewardRedeemed user=${user} amount=${amount}`);
+    logger.info("RewardRedeemed", { user, amount });
   }
 }
 
 export async function startIndexer(): Promise<void> {
   await ensureIndexerTable();
-  console.log("[indexer] started");
+  logger.info("indexer started");
 
   const poll = async () => {
     try {
@@ -121,7 +122,7 @@ export async function startIndexer(): Promise<void> {
         await saveCursor((last as SorobanRpc.Api.RawEventResponse).pagingToken);
       }
     } catch (err) {
-      console.error("[indexer] poll error:", err);
+      logger.error("indexer poll error", { error: (err as Error).message });
     }
   };
 
