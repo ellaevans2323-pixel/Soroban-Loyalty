@@ -2,6 +2,8 @@
 
 A modular, production-grade on-chain loyalty platform built on the **Stellar** network using **Soroban** smart contracts. Businesses create reward campaigns, users earn tokenized incentives (LYT), and everything is stored transparently on-chain.
 
+See our [Glossary](docs/glossary.md) for definitions of domain-specific terms and our [Changelog](CHANGELOG.md) for recent updates.
+
 ---
 
 ## Architecture
@@ -209,3 +211,10 @@ soroban-loyalty/
 - Overflow-safe arithmetic via `checked_add` / Rust's `overflow-checks = true` in release
 - Token minting is restricted to the Rewards contract (set as admin during deploy)
 - No secret keys in code — all keys via environment variables
+
+---
+
+## Code of Conduct
+
+This project follows the [Code of Conduct](./CODE_OF_CONDUCT.md).  
+By participating, you are expected to uphold these guidelines.

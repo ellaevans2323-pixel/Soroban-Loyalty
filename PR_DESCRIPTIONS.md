@@ -1,95 +1,204 @@
 # Pull Request Descriptions
 
----
-
-## PR: Redeem Flow UI
-
-**Branch:** `feat/redeem-flow-38`
-
-### What
-Adds a full LYT redemption flow accessible from the dashboard.
-
-### Changes
-- `RedeemForm.tsx` — balance display, amount input, client-side validation, two-step burn confirmation
-- `dashboard/page.tsx` — integrates `RedeemForm`, computes live `lytBalance` from unredeemed rewards
-
-### Acceptance Criteria
-- [x] Redeem form accessible from dashboard
-- [x] Current LYT balance displayed above amount input
-- [x] Amount validated against balance (client-side)
-- [x] Confirmation step shows amount to be burned
-- [x] Transaction submitted via Freighter
-- [x] Balance updates after successful redemption
-
-Closes #38
+This document contains the PR descriptions for all feature branches. Copy and paste these when creating pull requests on GitHub.
 
 ---
 
-## PR: Frontend Unit Tests
+## PR #107: Add Domain Glossary
 
-**Branch:** `feat/frontend-tests-43`
+### Branch: `issue-107-glossary`
 
-### What
-Configures Jest + React Testing Library and adds unit tests for all key components and context.
+### Title
+Add domain-specific glossary to documentation
 
-### Changes
-- `jest.config.js` + `jest.setup.ts` — Jest configured with ts-jest and jsdom
-- `__mocks__/freighter.ts` + `__mocks__/stellar-sdk.ts` — module mocks
-- Fixed package name `@freighter-api/freighter-api` → `@stellar/freighter-api`
-- Exported `WalletContext` for test injection
-- 5 test suites, 28 tests: `WalletConnector`, `CampaignCard`, `RewardList`, `RedeemForm`, `WalletContext`
+### Description
+This PR adds a comprehensive glossary of domain terms (LYT, Soroban, Claim, Redeem, etc.) to help new contributors and users understand the platform's terminology.
 
-### Acceptance Criteria
-- [x] Jest and React Testing Library configured
-- [x] Tests for `WalletConnector`, `CampaignCard`, `RewardList` components
-- [x] Tests for all form validation logic (`RedeemForm`)
-- [x] Tests for `WalletContext` state transitions
-
-Closes #43
+Closes #107
 
 ---
 
-## PR: Campaign Data Table
+## PR #96: Create User Guide
 
-**Branch:** `feat/campaign-table-51`
+### Branch: `issue-96-user-guide`
 
-### What
-Replaces the merchant campaign card grid with a structured data table for managing campaigns at scale.
+### Title
+Create comprehensive user guide with screenshots
 
-### Changes
-- `CampaignTable.tsx` — sortable columns, search filter, 20-row pagination, inline deactivate with confirmation
-- `merchant/page.tsx` — swaps card grid for `CampaignTable`
+### Description
+This PR adds a step-by-step user guide covering wallet setup, connecting, browsing campaigns, and claiming rewards. Includes UI screenshots for better accessibility.
 
-### Acceptance Criteria
-- [x] Columns: ID, reward amount, claims, expiry, status, actions
-- [x] Sortable columns (click header to toggle asc/desc)
-- [x] Search/filter by campaign name or ID
-- [x] Inline deactivate with confirm/cancel step
-- [x] Pagination at 20 rows per page
-- [x] Horizontal scroll on mobile via `overflow-x: auto`
-
-Closes #51
+Closes #96
 
 ---
 
-## PR: Claim Micro-Animation
+## PR #98: Add Backend JSDoc Documentation
 
-**Branch:** `feat/claim-animation-52`
+### Branch: `issue-98-jsdoc`
 
-### What
-Adds a confetti burst and animated LYT balance counter on successful reward claim.
+### Title
+Add JSDoc/TSDoc to backend services, routes, and indexer
 
-### Changes
-- `Confetti.tsx` — canvas particle burst (60 particles, gravity, fade-out, ~1.4s)
-- `useCountUp.ts` — ease-out cubic counter hook (~1.2s duration)
-- `CampaignCard.tsx` — renders `<Confetti>` and "✓ Claimed!" on successful claim
-- `dashboard/page.tsx` — animated balance counter via `useCountUp`
+### Description
+This PR improves code maintainability by adding inline documentation to all public functions in the backend, including parameters, return values, and error handling.
 
-### Acceptance Criteria
-- [x] Confetti animation plays on successful claim
-- [x] LYT balance counter animates from old to new value
-- [x] Animation duration under 1.5 seconds
-- [x] Respects `prefers-reduced-motion` (disabled if set)
-- [x] Animation does not block UI interaction
+Closes #98
 
-Closes #52
+---
+
+## PR #58: Redesign Campaign Card Visual Hierarchy
+
+### Branch: `issue-58-campaign-card`
+
+### Title
+Redesign campaign cards for improved scannability and UX
+
+### Description
+This PR enhances the campaign card design with a clearer visual hierarchy, prominent reward amounts, relative time-based expiry, and hover elevation effects.
+
+Closes #58
+
+---
+
+## PR #1: Fix Responsive Campaign Card Layout
+
+### Branch: `fix/responsive-campaign-cards-30`
+
+### Title
+Fix responsive campaign card layout for mobile and tablet devices
+
+### Description
+
+
+---
+
+## PR #2: Add Network Status Monitoring and Indicator
+
+### Branch: `feature/network-status-indicator-59`
+
+### Title
+Add network status monitoring with real-time health checks
+
+### Description
+
+This PR adds comprehensive network status monitoring to provide users with visibility into the Stellar network connection and application health. Users can now see when the network is degraded or unreachable, preventing failed transaction attempts.
+
+#### Changes Made
+
+**Backend:**
+- Enhanced `/health` endpoint with Stellar network and database connectivity checks
+- Added latency measurements and detailed health status reporting
+- Integrated with existing Soroban RPC and PostgreSQL connections
+
+**Frontend:**
+- Created `NetworkStatusIndicator` component with green/yellow/red status dots
+- Implemented `useNetworkStatus` hook with 30-second polling interval
+- Added `NetworkBanner` component for degraded/unreachable states
+- Integrated status indicator into application header
+- Disabled claim/redeem buttons when network is unreachable
+- Added accessible status indicators (color + icon + text)
+- Tooltip displays last checked time
+
+#### Accessibility
+- Status uses color + icon + text (not color alone)
+- Proper ARIA labels and roles
+- Screen reader compatible
+- Keyboard accessible
+
+#### Testing
+- ✅ Verified health endpoint returns proper status codes
+- ✅ Confirmed 30-second polling interval
+- ✅ Tested button disabling when network unreachable
+- ✅ Validated accessibility with screen readers (NVDA)
+- ✅ Tested network degradation scenarios
+
+#### Files Changed
+- `backend/src/index.ts` - Enhanced health endpoint
+- `frontend/src/hooks/useNetworkStatus.ts` - Network monitoring hook
+- `frontend/src/components/NetworkStatusIndicator.tsx` - Status indicator
+- `frontend/src/components/NetworkBanner.tsx` - Warning banner
+- `frontend/src/app/layout.tsx` - Integrated status indicator
+- `frontend/src/app/dashboard/page.tsx` - Disabled buttons when offline
+- `frontend/src/app/globals.css` - Network status styles
+
+#### Performance Impact
+- Minimal: 30-second polling interval with 5-second timeout
+- Health checks are lightweight (< 100ms typical response time)
+- No impact on user interactions
+
+Closes #59
+
+---
+
+## PR #3: Add Internationalization Support (English and Spanish)
+
+### Branch: `feature/internationalization-40`
+
+### Title
+
+
+---
+
+## PR #4: Add CSV Export and Print View for Transaction History
+
+### Branch: `feature/csv-export-print-view-60`
+
+### Title
+
+
+---
+
+## How to Use These PR Descriptions
+
+1. Go to your GitHub repository
+2. Click on "Pull requests" tab
+3. Click "New pull request"
+4. Select the branch you want to merge
+5. Copy and paste the corresponding description above
+6. Add any additional screenshots or context
+7. Submit the pull request
+
+The "Closes #XX" at the end of each description will automatically close the corresponding issue when the PR is merged.
+
+---
+
+---
+
+## Merge Order Recommendation
+
+While all PRs can be merged independently, the recommended merge order is:
+
+1. **#30 (Responsive Layout)** - Pure CSS changes, no dependencies
+2. **#59 (Network Status)** - Backend + Frontend, no dependencies
+3. **#40 (Internationalization)** - Adds new dependencies, affects all components
+4. **#60 (CSV Export)** - New feature, minimal conflicts
+5. **#112 (Contract Upgrade)** - Critical security feature
+
+Alternatively, all can be merged together if testing is done on a combined branch first.
+
+---
+
+## PR #112: Implement Contract Upgrade Mechanism with Timelock
+
+### Branch: `feat/contract-upgrade-timelock`
+
+### Title
+Implement contract upgrade mechanism with 48-hour timelock and multi-sig
+
+### Description
+This PR introduces a secure governance layer for contract upgrades, ensuring that all WASM updates are subject to a mandatory timelock and multi-admin authorization.
+
+#### Changes Made
+- **Upgrade Proposal**: Added `propose_upgrade` to initiate an upgrade with a WASM hash.
+- **Multi-sig (N-of-M)**: Implemented `authorize_upgrade` to collect signatures from multiple admins.
+- **Timelock**: Enforced a 48-hour delay (172,800 seconds) between proposal and execution.
+- **Emergency Controls**: Added `cancel_upgrade` for authorized admins to abort pending proposals.
+- **Transparency**: Integrated indexer-friendly events (`UPG_PROP`, `UPG_AUTH`, `UPG_EXEC`, `UPG_CAN`).
+- **Initialization**: Updated `initialize` to accept a vector of admins and a signature threshold.
+
+#### Testing
+- ✅ Unit tests for the full upgrade lifecycle
+- ✅ Verification of timelock and threshold constraints
+- ✅ Event emission validation
+
+Closes #112

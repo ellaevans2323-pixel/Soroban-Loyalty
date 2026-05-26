@@ -1,0 +1,26 @@
+# Development override — loaded automatically by docker-compose.
+#
+# Intentionally does NOT set restart: unless-stopped so that crashed
+# containers stay stopped during local development, making failures
+# immediately visible rather than silently restarting.
+#
+# For production, use docker-compose.prod.yml instead:
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: "3.9"
+
+services:
+  postgres:
+    restart: "no"
+
+  redis:
+    restart: "no"
+
+  soroban-local:
+    restart: "no"
+
+  backend:
+    restart: "no"
+
+  frontend:
+    restart: "no"
