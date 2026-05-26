@@ -9,6 +9,11 @@ const config = {
     "^@stellar/stellar-sdk$": "<rootDir>/src/__mocks__/stellar-sdk.ts",
   },
   testMatch: ["**/__tests__/**/*.test.tsx"],
+  collectCoverageFrom: ["src/**/*.{ts,tsx}", "!src/**/*.d.ts"],
+  coverageReporters: ["text", "lcov"],
+  coverageThreshold: {
+    global: { lines: 70, functions: 70, branches: 70, statements: 70 },
+  },
 };
 
 module.exports = config;

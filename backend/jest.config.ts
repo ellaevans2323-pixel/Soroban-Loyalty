@@ -5,6 +5,10 @@ const config: Config = {
   testEnvironment: "node",
   testMatch: ["**/__tests__/**/*.test.ts"],
   collectCoverageFrom: ["src/**/*.ts", "!src/index.ts"],
+  coverageReporters: ["text", "lcov"],
+  coverageThreshold: {
+    global: { lines: 70, functions: 70, branches: 70, statements: 70 },
+  },
   setupFiles: ["<rootDir>/src/__tests__/setup.ts"],
   moduleNameMapper: {
     "^.*/soroban$": "<rootDir>/src/__mocks__/soroban.ts",
