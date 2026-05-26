@@ -209,3 +209,40 @@ soroban-loyalty/
 - Overflow-safe arithmetic via `checked_add` / Rust's `overflow-checks = true` in release
 - Token minting is restricted to the Rewards contract (set as admin during deploy)
 - No secret keys in code — all keys via environment variables
+
+---
+
+## Database Backup & Restore
+
+### Backup
+
+`scripts/backup-db.sh` creates a timestamped, gzip-compressed pg_dump and optionally uploads it to S3.
+
+**Required environment variable:**
+```
+DATABASE_URL=postgres://user:pass@host:5432/dbname
+```
+
+**Optional S3 upload variables:**
+```
+AWS_S3_BACKUP_BUCKET=my-backups-bucket
+AWS_S3_BACKUP_PREFIX=soroban-loyalty   # default: backups
+```
+
+**Run manually:**
+```bash
+./scripts/backup-db.sh
+```
+
+**Run via cron** (daily at 2 AM):
+```cron
+0 2 * * * cd /path/to/soroban-loyalty && ./scripts/backup-db.sh >> /var/log/db-backup.log 2>&1
+```
+
+Backups are saved to `/tmp/db-backups/` by default. Override with `BACKUP_DIR=/your/path`.
+
+### Restore
+
+```bash
+gunzip -c backup_20260101T020000Z.sql.gz | psql "$DATABASE_URL"
+```
