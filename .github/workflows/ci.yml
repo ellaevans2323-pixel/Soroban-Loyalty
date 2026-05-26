@@ -1,0 +1,254 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same PR/branch to save resources
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Backend unit + integration tests ────────────────────────────────────────
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: loyalty
+          POSTGRES_PASSWORD: loyalty
+          POSTGRES_DB: loyalty
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://loyalty:loyalty@localhost:5432/loyalty
+      TEST_DATABASE_URL: postgresql://loyalty:loyalty@localhost:5432/loyalty_test
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run migrations
+        run: npm run migrate:up
+
+      - name: Create integration test database
+        run: psql $DATABASE_URL -c "CREATE DATABASE loyalty_test;"
+
+      - name: Apply test DB schema
+        run: psql $TEST_DATABASE_URL -f ../database/schema.sql
+
+      - name: Unit tests
+        run: npm test -- --ci --coverage
+
+      - name: Integration tests
+        run: npm run test:integration -- --ci
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage/
+          retention-days: 7
+
+  # ── Frontend component tests ─────────────────────────────────────────────────
+  frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Component tests
+        run: npm test -- --ci
+
+  # ── Rust contract tests ──────────────────────────────────────────────────────
+  contracts:
+    name: Contract Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.85.0"
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run all tests (including integration)
+        run: cargo test --workspace
+
+  # ── Secret scanning ──────────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-path: .gitleaks.toml
+
+  # ── E2E tests (sequential — resource-constrained) ────────────────────────────
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Run after backend and frontend pass to avoid wasting runner time
+    needs: [backend, frontend]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: loyalty
+          POSTGRES_PASSWORD: loyalty
+          POSTGRES_DB: loyalty
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://loyalty:loyalty@localhost:5432/loyalty
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      STAGING_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Install backend deps
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install Playwright deps
+        run: npm ci
+        working-directory: e2e
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: e2e
+
+      - name: Apply DB schema
+        run: psql $DATABASE_URL -f database/schema.sql
+
+      - name: Start backend
+        run: npm run dev &
+        working-directory: backend
+        env:
+          PORT: 3001
+          ENABLE_INDEXER: "false"
+
+      - name: Build & start frontend
+        run: |
+          npm run build
+          npm run start &
+        working-directory: frontend
+
+      - name: Wait for services
+        run: npx wait-on http://localhost:3001/health http://localhost:3000 --timeout 60000
+
+      - name: Run E2E tests
+        run: npx playwright test --workers=1
+        working-directory: e2e
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: e2e/test-results/
+          retention-days: 7
