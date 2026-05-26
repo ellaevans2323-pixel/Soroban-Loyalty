@@ -1,3 +1,10 @@
+# [1.36.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.35.0...v1.36.0) (2026-05-26)
+
+
+### Features
+
+* add automated database backup script ([6083fef](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/6083fef92f30760570f3af91875ba5839c87f096)), closes [#400](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/400)
+
 # [1.35.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.34.0...v1.35.0) (2026-05-26)
 
 
