@@ -243,3 +243,15 @@ campaignRouter.post("/:id/restore", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to restore campaign" });
   }
 });
+
+campaignRouter.post("/", sanitizeBody, async (req: Request, res: Response) => {
+  const parsed = CreateCampaignSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  try {
+    const { name: _name, description: _desc, ...rest } = parsed.data;
+    await upsertCampaign({ ...rest, id: Date.now(), active: true, total_claimed: 0 });
+    res.status(201).json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to create campaign" });
+  }
+});
