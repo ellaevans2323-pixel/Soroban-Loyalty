@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createRewardClaim, DuplicateClaimError, getRewardsByUser } from "../services/reward.service";
 import { asyncHandler } from "../middleware/errorHandler";
 import { BadRequestError } from "../utils/errors";
+import { isValidStellarAddress } from "../utils/validation";
 
 export const rewardRouter = Router();
 const ClaimSchema = z.object({
@@ -45,7 +46,7 @@ const ClaimSchema = z.object({
  */
 rewardRouter.get("/user/:address/rewards", asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
-  if (!address || address.length !== 56) {
+  if (!isValidStellarAddress(address)) {
     throw new BadRequestError("Invalid Stellar address", { address });
   }
   try {
@@ -62,7 +63,7 @@ rewardRouter.get("/user/:address/rewards", asyncHandler(async (req: Request, res
  */
 rewardRouter.post("/user/:address/rewards/claim", async (req: Request, res: Response) => {
   const address = String(req.params.address);
-  if (!address || address.length !== 56) {
+  if (!isValidStellarAddress(address)) {
     return res.status(400).json({ error: "Invalid Stellar address" });
   }
 
