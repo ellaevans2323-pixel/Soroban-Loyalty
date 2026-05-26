@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.33.0...v1.34.0) (2026-05-26)
+
+
+### Features
+
+* **security:** add secrets management tooling and documentation ([b1a1bfa](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/b1a1bfa691167656a6049add8afef8bb5c07a4e1)), closes [#406](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/406)
+
 # [1.33.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.32.0...v1.33.0) (2026-04-29)
 
 
