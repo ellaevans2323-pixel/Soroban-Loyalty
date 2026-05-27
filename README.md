@@ -212,6 +212,28 @@ soroban-loyalty/
 
 ---
 
+## PostgreSQL Connection Pool
+
+The backend uses `pg.Pool`. All four sizing knobs are configurable via environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `DB_POOL_MAX` | `10` | Maximum concurrent connections. |
+| `DB_POOL_MIN` | `2` | Minimum idle connections kept alive. |
+| `DB_POOL_IDLE_TIMEOUT_MS` | `30000` | Milliseconds before an idle connection is closed. |
+| `DB_POOL_CONNECTION_TIMEOUT_MS` | `5000` | Milliseconds to wait for a free connection before throwing. |
+
+**Sizing guidance**
+
+- **`DB_POOL_MAX`** — A common starting formula is `(vCPUs × 2) + effective_spindle_count`. For a 2-vCPU app server talking to a `db.t3.medium` (2 vCPU), `10` is a safe default. Never exceed the database's `max_connections` (default 100 on RDS) across all app instances combined.
+- **`DB_POOL_MIN`** — Keep at `2` so the first request after an idle period doesn't pay connection-setup latency. Set to `0` in serverless/ephemeral environments.
+- **`DB_POOL_IDLE_TIMEOUT_MS`** — Lower to `10000` in low-traffic or serverless deployments to release connections back to the database sooner.
+- **`DB_POOL_CONNECTION_TIMEOUT_MS`** — `5000` is a reasonable upper bound. Tune down to `2000` if you prefer fast-fail behaviour under pool exhaustion.
+
+Pool exhaustion errors are logged at `error` level with `totalCount`, `idleCount`, and `waitingCount` for immediate observability.
+
+---
+
 ## Security Notes
 
 - All sensitive contract functions use `require_auth()`
