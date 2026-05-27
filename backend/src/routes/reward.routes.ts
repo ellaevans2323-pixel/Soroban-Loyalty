@@ -2,10 +2,13 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { createRewardClaim, DuplicateClaimError, getRewardsByUser } from "../services/reward.service";
 import { asyncHandler } from "../middleware/errorHandler";
+import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
 import { isValidStellarAddress } from "../utils/validation";
 
 export const rewardRouter = Router();
+
+// Route-specific validation schemas
 const ClaimSchema = z.object({
   campaign_id: z.number().int().positive(),
   amount: z.number().int().positive(),
@@ -72,19 +75,20 @@ rewardRouter.post("/user/:address/rewards/claim", async (req: Request, res: Resp
     return res.status(400).json({ error: "campaign_id and amount must be positive integers" });
   }
 
-  try {
-    await createRewardClaim({
-      user_address: address,
-      campaign_id: parsed.data.campaign_id,
-      amount: parsed.data.amount,
-      redeemed: false,
-      redeemed_amount: 0,
-    });
-    return res.status(201).json({ ok: true });
-  } catch (err) {
-    if (err instanceof DuplicateClaimError) {
-      return res.status(409).json({ error: err.message });
+    try {
+      await createRewardClaim({
+        user_address: address,
+        campaign_id,
+        amount,
+        redeemed: false,
+        redeemed_amount: 0,
+      });
+      res.status(201).json({ ok: true });
+    } catch (err) {
+      if (err instanceof DuplicateClaimError) {
+        return res.status(409).json({ error: err.message });
+      }
+      throw err;
     }
-    return res.status(500).json({ error: "Failed to claim reward" });
-  }
-});
+  })
+);

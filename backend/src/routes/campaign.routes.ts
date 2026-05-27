@@ -11,10 +11,33 @@ import {
 import { redisClient } from "../lib/redis";
 import { logger } from "../logger";
 import { asyncHandler } from "../middleware/errorHandler";
+import { validateBody, validateParams, validateQuery } from "../middleware/validation";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 import { parseStrictInteger } from "../utils/validation";
 
 export const campaignRouter = Router();
+
+// Route-specific validation schemas
+const CampaignQuerySchema = z.object({
+  limit: z.string().optional().transform(val => Math.min(parseInt(val || "20", 10) || 20, 100)),
+  offset: z.string().optional().transform(val => parseInt(val || "0", 10) || 0),
+  search: z.string().optional(),
+  status: z.enum(["active", "inactive"]).optional(),
+  expires_before: z.string().optional().transform(val => {
+    if (!val) return undefined;
+    const num = parseInt(val, 10);
+    return isNaN(num) ? undefined : num;
+  }),
+  expires_after: z.string().optional().transform(val => {
+    if (!val) return undefined;
+    const num = parseInt(val, 10);
+    return isNaN(num) ? undefined : num;
+  })
+});
+
+const ReorderSchema = z.object({
+  order: z.array(z.number().int().positive()),
+});
 
 /**
  * @openapi
@@ -164,10 +187,6 @@ campaignRouter.get("/:id", asyncHandler(async (req: Request, res: Response) => {
   res.json({ campaign });
 }));
 
-const ReorderSchema = z.object({
-  order: z.array(z.number().int().positive()),
-});
-
 /**
  * @openapi
  * /campaigns/reorder:
@@ -203,12 +222,9 @@ const ReorderSchema = z.object({
  *       500:
  *         description: Server error.
  */
-campaignRouter.patch("/reorder", asyncHandler(async (req: Request, res: Response) => {
-  const parsed = ReorderSchema.safeParse(req.body);
-  if (!parsed.success) {
-    throw new BadRequestError("Invalid request body", { errors: parsed.error.errors });
-  }
-  await reorderCampaigns(parsed.data.order);
+campaignRouter.patch("/reorder", validateBody(ReorderSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { order } = req.body;
+  await reorderCampaigns(order);
   res.json({ ok: true });
 }));
 
@@ -226,7 +242,8 @@ campaignRouter.delete("/:id", async (req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to delete campaign" });
   }
-});
+  res.json({ ok: true });
+}));
 
 /**
  * POST /campaigns/:id/restore

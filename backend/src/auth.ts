@@ -74,14 +74,12 @@ function verifyJwt(token: string): Record<string, unknown> {
  * Returns: { nonce: string }
  */
 export function challengeHandler(req: Request, res: Response): void {
-  const { publicKey } = req.body as { publicKey?: string };
-  if (!publicKey || typeof publicKey !== "string") {
-    res.status(400).json({ error: "publicKey is required" });
-    return;
-  }
+  const { publicKey } = req.body; // Already validated by middleware
 
   // Validate it looks like a Stellar public key
-  try { Keypair.fromPublicKey(publicKey); } catch {
+  try { 
+    Keypair.fromPublicKey(publicKey); 
+  } catch {
     res.status(400).json({ error: "Invalid Stellar public key" });
     return;
   }
@@ -101,11 +99,7 @@ export function challengeHandler(req: Request, res: Response): void {
  * Freighter's signMessage (or equivalent) and send the hex-encoded signature.
  */
 export function verifyHandler(req: Request, res: Response): void {
-  const { publicKey, signature } = req.body as { publicKey?: string; signature?: string };
-  if (!publicKey || !signature) {
-    res.status(400).json({ error: "publicKey and signature are required" });
-    return;
-  }
+  const { publicKey, signature } = req.body; // Already validated by middleware
 
   const entry = nonceStore.get(publicKey);
   if (!entry || entry.expiresAt < Date.now()) {
