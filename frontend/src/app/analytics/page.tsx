@@ -6,6 +6,7 @@ import { api, AnalyticsData } from "@/lib/api";
 import { ExperimentStatsPanel } from "@/components/ExperimentStatsPanel";
 
 import { StatCardsSkeleton, BarChartSkeleton, LineChartSkeleton } from "@/components/ChartSkeleton";
+import { EmptyState } from "@/components/EmptyState";
 const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
 const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
 const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
@@ -126,7 +127,12 @@ export default function AnalyticsPage() {
               </details>
             </>
           ) : (
-            <p className="empty-state">No claim data for this period.</p>
+            <EmptyState
+              illustration="campaigns"
+              title="No campaign data"
+              description="No claim data for this period."
+              cta={{ label: "Create a campaign", href: "/merchant" }}
+            />
           )}
 
           {/* Line chart: claims over time */}
@@ -170,7 +176,11 @@ export default function AnalyticsPage() {
               </details>
             </>
           ) : (
-            <p className="empty-state">No time-series data for this period.</p>
+            <EmptyState
+              illustration="transactions"
+              title="No time-series data"
+              description="No time-series data for this period."
+            />
           )}
         </>
       ) : null}
