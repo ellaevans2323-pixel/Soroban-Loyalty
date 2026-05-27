@@ -4,7 +4,7 @@ import { createRewardClaim, DuplicateClaimError, getRewardsByUser } from "../ser
 import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
-import { StellarAddressSchema } from "./schemas";
+import { isValidStellarAddress } from "../utils/validation";
 
 export const rewardRouter = Router();
 
@@ -47,22 +47,33 @@ const ClaimSchema = z.object({
  *       500:
  *         description: Server error.
  */
-rewardRouter.get("/user/:address/rewards", validateParams(StellarAddressSchema), asyncHandler(async (req: Request, res: Response) => {
-  const { address } = req.params as any;
-  const rewards = await getRewardsByUser(address);
-  res.json({ rewards });
+rewardRouter.get("/user/:address/rewards", asyncHandler(async (req: Request, res: Response) => {
+  const address = String(req.params.address);
+  if (!isValidStellarAddress(address)) {
+    throw new BadRequestError("Invalid Stellar address", { address });
+  }
+  try {
+    const rewards = await getRewardsByUser(address);
+    res.json({ rewards });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch rewards" });
+  }
 }));
 
 /**
  * POST /user/:address/rewards/claim
  * Inserts a reward claim once per (user, campaign). Duplicate claims return 409.
  */
-rewardRouter.post("/user/:address/rewards/claim", 
-  validateParams(StellarAddressSchema), 
-  validateBody(ClaimSchema), 
-  asyncHandler(async (req: Request, res: Response) => {
-    const { address } = req.params as any;
-    const { campaign_id, amount } = req.body;
+rewardRouter.post("/user/:address/rewards/claim", async (req: Request, res: Response) => {
+  const address = String(req.params.address);
+  if (!isValidStellarAddress(address)) {
+    return res.status(400).json({ error: "Invalid Stellar address" });
+  }
+
+  const parsed = ClaimSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "campaign_id and amount must be positive integers" });
+  }
 
     try {
       await createRewardClaim({

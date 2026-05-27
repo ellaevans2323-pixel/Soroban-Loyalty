@@ -1,3 +1,32 @@
+# [1.37.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.36.0...v1.37.0) (2026-05-26)
+
+
+### Features
+
+* add coverage reporting and 70% threshold enforcement ([66cb446](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/66cb44686e46c206f1ba9f81bd63b63e90b35925))
+* add XSS prevention - backend sanitization and frontend tests ([00d5e9b](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/00d5e9b2dd6250150b7f039b34a85df9ce148888)), closes [#401](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/401)
+
+# [1.36.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.35.0...v1.36.0) (2026-05-26)
+
+
+### Features
+
+* add automated database backup script ([6083fef](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/6083fef92f30760570f3af91875ba5839c87f096)), closes [#400](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/400)
+
+# [1.35.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.34.0...v1.35.0) (2026-05-26)
+
+
+### Features
+
+* **docker:** add prod compose with restart policy, resource limits, and JSON logging ([3c8b85b](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/3c8b85be3b0b787503d999012832157fbc09a041)), closes [#404](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/404) [#398](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/398) [#396](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/396)
+
+# [1.34.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.33.0...v1.34.0) (2026-05-26)
+
+
+### Features
+
+* **security:** add secrets management tooling and documentation ([b1a1bfa](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/b1a1bfa691167656a6049add8afef8bb5c07a4e1)), closes [#406](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/406)
+
 # [1.33.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.32.0...v1.33.0) (2026-04-29)
 
 

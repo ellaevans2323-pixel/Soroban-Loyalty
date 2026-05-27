@@ -1,9 +1,7 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { getTransactionsByUser } from "../services/transaction.service";
-import { asyncHandler } from "../middleware/errorHandler";
-import { validateParams, validateQuery } from "../middleware/validation";
-import { StellarAddressSchema, PaginationQuerySchema } from "./schemas";
+import { isValidStellarAddress } from "../utils/validation";
 
 export const transactionRouter = Router();
 
@@ -18,6 +16,11 @@ transactionRouter.get("/user/:address/transactions",
     const { address } = req.params as any;
     const { limit, offset } = req.query as any;
 
+  if (!isValidStellarAddress(address)) {
+    return res.status(400).json({ error: "Invalid Stellar address" });
+  }
+
+  try {
     const data = await getTransactionsByUser(address, limit, offset);
     res.json(data);
   })

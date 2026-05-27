@@ -663,6 +663,182 @@ impl RewardsContract {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+mod test_integration {
+    //! Integration tests: deploy all three contracts to a local Soroban
+    //! environment and verify the full end-to-end flow.
+    //!
+    //! Flow: create campaign → claim reward → verify LYT balance →
+    //!       redeem → verify burn → double-claim prevention.
+
+    use super::*;
+    use soroban_loyalty_campaign::CampaignContract;
+    use soroban_loyalty_token::TokenContract;
+    use soroban_sdk::{
+        testutils::{Address as _, Ledger},
+        Env,
+    };
+
+    struct IntegrationSetup<'a> {
+        env: Env,
+        admin: Address,
+        merchant: Address,
+        user: Address,
+        token: soroban_loyalty_token::TokenContractClient<'a>,
+        campaign: soroban_loyalty_campaign::CampaignContractClient<'a>,
+        rewards: RewardsContractClient<'a>,
+    }
+
+    fn deploy_all() -> IntegrationSetup<'static> {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let merchant = Address::generate(&env);
+        let user = Address::generate(&env);
+
+        // 1. Register rewards contract first (needed as token minter)
+        let rewards_id = env.register_contract(None, RewardsContract);
+
+        // 2. Deploy token with rewards contract as minter
+        let token_id = env.register_contract(None, TokenContract);
+        let token = soroban_loyalty_token::TokenContractClient::new(&env, &token_id);
+        let mut signers = soroban_sdk::Vec::new(&env);
+        signers.push_back(admin.clone());
+        token.initialize(
+            &signers,
+            &1,
+            &rewards_id,
+            &soroban_sdk::String::from_str(&env, "LoyaltyToken"),
+            &soroban_sdk::String::from_str(&env, "LYT"),
+            &7,
+        );
+
+        // 3. Deploy campaign contract
+        let campaign_id = env.register(CampaignContract, ());
+        let campaign = soroban_loyalty_campaign::CampaignContractClient::new(&env, &campaign_id);
+        let mut admins = soroban_sdk::Vec::new(&env);
+        admins.push_back(admin.clone());
+        campaign.initialize(&admins, &1);
+
+        // 4. Initialize rewards contract
+        let rewards = RewardsContractClient::new(&env, &rewards_id);
+        rewards.initialize(&admin, &token_id, &campaign_id);
+
+        IntegrationSetup { env, admin, merchant, user, token, campaign, rewards }
+    }
+
+    /// Full end-to-end flow: create → claim → verify LYT → redeem → verify burn.
+    #[test]
+    fn test_full_flow_create_claim_redeem() {
+        let t = deploy_all();
+
+        // Step 1: Create campaign on-chain
+        let reward_amount: i128 = 1_000;
+        let expiry = t.env.ledger().timestamp() + 86_400;
+        let name = soroban_sdk::Bytes::from_slice(&t.env, b"Integration Campaign");
+        let desc = soroban_sdk::Bytes::from_slice(&t.env, b"End-to-end test");
+        let campaign_id = t.campaign.create_campaign(
+            &t.merchant,
+            &reward_amount,
+            &expiry,
+            &name,
+            &desc,
+            &0,
+            &soroban_sdk::Option::None,
+        );
+
+        // Verify campaign is stored on-chain
+        assert!(t.campaign.is_active(&campaign_id));
+        let stored = t.campaign.get_campaign(&campaign_id);
+        assert_eq!(stored.merchant, t.merchant);
+        assert_eq!(stored.reward_amount, reward_amount);
+        assert!(stored.active);
+
+        // Step 2: Claim reward — mints LYT to user
+        let balance_before = t.token.balance(&t.user);
+        assert_eq!(balance_before, 0);
+
+        t.rewards.claim_reward(&t.user, &campaign_id);
+
+        // Step 3: Verify LYT minted (2x multiplier at t=0 of campaign)
+        let balance_after = t.token.balance(&t.user);
+        assert!(balance_after > 0, "LYT must be minted after claim");
+        assert!(t.rewards.has_claimed_view(&t.user, &campaign_id));
+
+        // Step 4: Redeem (burn) half the tokens
+        let redeem_amount = balance_after / 2;
+        let supply_before = t.token.total_supply_view();
+        t.rewards.redeem_reward(&t.user, &redeem_amount);
+
+        // Step 5: Verify balance decreased and tokens were burned
+        let balance_final = t.token.balance(&t.user);
+        assert_eq!(balance_final, balance_after - redeem_amount);
+        assert_eq!(t.token.total_supply_view(), supply_before - redeem_amount);
+    }
+
+    /// Double-claim prevention: second claim on same campaign must panic.
+    #[test]
+    #[should_panic(expected = "already claimed")]
+    fn test_double_claim_prevention() {
+        let t = deploy_all();
+
+        let expiry = t.env.ledger().timestamp() + 86_400;
+        let name = soroban_sdk::Bytes::from_slice(&t.env, b"Double Claim Test");
+        let desc = soroban_sdk::Bytes::from_slice(&t.env, b"desc");
+        let campaign_id = t.campaign.create_campaign(
+            &t.merchant,
+            &500,
+            &expiry,
+            &name,
+            &desc,
+            &0,
+            &soroban_sdk::Option::None,
+        );
+
+        t.rewards.claim_reward(&t.user, &campaign_id);
+        // Second claim must fail
+        t.rewards.claim_reward(&t.user, &campaign_id);
+    }
+
+    /// Verify LYT balance is exactly zero before any claim.
+    #[test]
+    fn test_initial_lyt_balance_is_zero() {
+        let t = deploy_all();
+        assert_eq!(t.token.balance(&t.user), 0);
+        assert_eq!(t.token.total_supply_view(), 0);
+    }
+
+    /// Verify full redeem burns all tokens and supply reaches zero.
+    #[test]
+    fn test_full_redeem_burns_all_tokens() {
+        let t = deploy_all();
+
+        let expiry = t.env.ledger().timestamp() + 86_400;
+        let name = soroban_sdk::Bytes::from_slice(&t.env, b"Full Burn Test");
+        let desc = soroban_sdk::Bytes::from_slice(&t.env, b"desc");
+        let campaign_id = t.campaign.create_campaign(
+            &t.merchant,
+            &200,
+            &expiry,
+            &name,
+            &desc,
+            &0,
+            &soroban_sdk::Option::None,
+        );
+
+        t.rewards.claim_reward(&t.user, &campaign_id);
+        let balance = t.token.balance(&t.user);
+        assert!(balance > 0);
+
+        // Redeem everything
+        t.rewards.redeem_reward(&t.user, &balance);
+
+        assert_eq!(t.token.balance(&t.user), 0);
+        assert_eq!(t.token.total_supply_view(), 0);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use soroban_loyalty_campaign::CampaignContract;
