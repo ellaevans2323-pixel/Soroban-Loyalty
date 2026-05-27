@@ -7,6 +7,8 @@ updates:
     labels:
       - dependencies
       - security
+    assignees:
+      - maintainer
 
   - package-ecosystem: npm
     directory: "/backend"
@@ -15,6 +17,8 @@ updates:
     labels:
       - dependencies
       - security
+    assignees:
+      - maintainer
 
   - package-ecosystem: npm
     directory: "/frontend"
@@ -23,6 +27,8 @@ updates:
     labels:
       - dependencies
       - security
+    assignees:
+      - maintainer
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -30,3 +36,5 @@ updates:
       interval: weekly
     labels:
       - dependencies
+    assignees:
+      - maintainer

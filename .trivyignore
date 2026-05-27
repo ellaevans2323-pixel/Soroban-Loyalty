@@ -1,0 +1,4 @@
+# .trivyignore — suppress known false positives or accepted risks
+# Format: CVE-ID or package@version
+# Example:
+# CVE-2023-12345
