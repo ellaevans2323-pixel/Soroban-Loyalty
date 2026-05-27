@@ -25,17 +25,20 @@ export const campaignRouter = Router();
  *     tags: [Campaigns]
  *     parameters:
  *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *           minimum: 1
+ *         description: Page number (1-indexed).
+ *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 20
- *         description: Maximum number of campaigns to return.
- *       - in: query
- *         name: offset
- *         schema:
- *           type: integer
- *           default: 0
- *         description: Number of campaigns to skip.
+ *           minimum: 1
+ *           maximum: 100
+ *         description: Maximum number of campaigns to return per page.
  *       - in: query
  *         name: search
  *         schema:
@@ -59,18 +62,25 @@ export const campaignRouter = Router();
  *         description: Return campaigns expiring at or after this unix timestamp.
  *     responses:
  *       200:
- *         description: A list of campaigns.
+ *         description: A paginated list of campaigns.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 campaigns:
+ *                 data:
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Campaign'
  *                 total:
  *                   type: integer
+ *                   description: Total number of campaigns matching filters.
+ *                 page:
+ *                   type: integer
+ *                   description: Current page number.
+ *                 limit:
+ *                   type: integer
+ *                   description: Items per page.
  *       400:
  *         description: Invalid query parameters.
  *       500:
@@ -81,8 +91,31 @@ export const campaignRouter = Router();
  *               $ref: '#/components/schemas/Error'
  */
 campaignRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
-  const limit = Math.min(parseInt(String(req.query.limit ?? "20"), 10) || 20, 100);
-  const offset = parseInt(String(req.query.offset ?? "0"), 10) || 0;
+  // Validate and parse pagination parameters
+  const pageStr = String(req.query.page ?? "1").trim();
+  const limitStr = String(req.query.limit ?? "20").trim();
+
+  const page = parseInt(pageStr, 10);
+  const limit = parseInt(limitStr, 10);
+
+  // Validate page
+  if (isNaN(page) || page < 1) {
+    throw new BadRequestError("Invalid pagination parameters", {
+      page: pageStr,
+      message: "page must be a positive integer",
+    });
+  }
+
+  // Validate limit
+  if (isNaN(limit) || limit < 1 || limit > 100) {
+    throw new BadRequestError("Invalid pagination parameters", {
+      limit: limitStr,
+      message: "limit must be an integer between 1 and 100",
+    });
+  }
+
+  // Convert page to offset
+  const offset = (page - 1) * limit;
 
   const filters: CampaignFilters = {};
   if (req.query.search) filters.search = String(req.query.search);
@@ -103,7 +136,8 @@ campaignRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       logger.debug(`Cache hit for ${cacheKey}`);
-      return res.json(JSON.parse(cached));
+      const cachedData = JSON.parse(cached);
+      return res.json(cachedData);
     }
   } catch (err) {
     logger.error("Redis cache read error", err as Error);
@@ -112,13 +146,21 @@ campaignRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
   logger.debug(`Cache miss for ${cacheKey}`);
   const result = await getCampaigns(limit, offset, filters);
 
+  // Transform response format
+  const paginatedResponse = {
+    data: result.campaigns,
+    total: result.total,
+    page,
+    limit,
+  };
+
   try {
-    await redisClient.setex(cacheKey, 30, JSON.stringify(result));
+    await redisClient.setex(cacheKey, 30, JSON.stringify(paginatedResponse));
   } catch (err) {
     logger.error("Redis cache write error", err as Error);
   }
 
-  res.json(result);
+  res.json(paginatedResponse);
 }));
 
 /**
