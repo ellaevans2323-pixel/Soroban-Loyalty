@@ -1,3 +1,11 @@
+# [1.39.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.38.0...v1.39.0) (2026-05-27)
+
+
+### Features
+
+* add empty state components for CampaignList, RewardList, and Analytics charts ([dd45805](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/dd45805b73b202b897f265d76c3d771061ea90ee)), closes [#393](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/393)
+* configurable PostgreSQL connection pool with health check and exhaustion logging ([ee16654](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/ee1665411e11515ac47d413d701dd67d2af3f5fd)), closes [#pool-config](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/pool-config)
+
 # [1.38.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.37.0...v1.38.0) (2026-05-27)
 
 
