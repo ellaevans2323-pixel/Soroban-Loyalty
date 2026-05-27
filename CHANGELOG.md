@@ -1,3 +1,10 @@
+# [1.38.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.37.0...v1.38.0) (2026-05-27)
+
+
+### Features
+
+* Add comprehensive Zod input validation middleware ([60c9a11](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/60c9a119e5127eba51200ef8004f702b1efddc65)), closes [#3](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/3)
+
 # [1.37.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.36.0...v1.37.0) (2026-05-26)
 
 
