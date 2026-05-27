@@ -73,6 +73,19 @@ const envSchema = z.object({
   /** Deployed Token contract ID. Required. */
   TOKEN_CONTRACT_ID: z.string().min(1),
 
+  // ── Connection Pool ─────────────────────────────────────────────────────────
+  /** Maximum number of clients in the pool. Default: 10. */
+  DB_POOL_MAX: z.string().default("10").transform(Number).pipe(z.number().int().min(1)),
+
+  /** Minimum number of idle clients kept alive. Default: 2. */
+  DB_POOL_MIN: z.string().default("2").transform(Number).pipe(z.number().int().min(0)),
+
+  /** Milliseconds a client may sit idle before being closed. Default: 30000. */
+  DB_POOL_IDLE_TIMEOUT_MS: z.string().default("30000").transform(Number).pipe(z.number().int().min(0)),
+
+  /** Milliseconds to wait for a connection before throwing. Default: 5000. */
+  DB_POOL_CONNECTION_TIMEOUT_MS: z.string().default("5000").transform(Number).pipe(z.number().int().min(0)),
+
   // ── Server ──────────────────────────────────────────────────────────────────
   /** HTTP port the Express server listens on. Default: 3001. */
   PORT: portString(3001),
