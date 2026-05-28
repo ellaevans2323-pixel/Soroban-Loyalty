@@ -16,6 +16,7 @@ import {
   dbPoolWaiting,
 } from "./metrics";
 import { errorAlertMiddleware, requestLogger } from "./logger";
+import { globalLimiter, rewardsLimiter } from "./middleware/rateLimiter";
 
 export function createApp() {
   const app = express();
@@ -23,6 +24,7 @@ export function createApp() {
   app.use(cors());
   app.use(express.json());
   app.use(requestLogger);
+  app.use(globalLimiter);
 
   app.use((req, res, next) => {
     const end = httpRequestDuration.startTimer();
