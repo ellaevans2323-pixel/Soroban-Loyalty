@@ -1,3 +1,35 @@
+/**
+ * CampaignCard Component
+ * 
+ * Displays a single campaign as a clickable card with claim button.
+ * Shows campaign details: merchant, reward amount, claim count, and countdown timer.
+ * Supports both user view (with claim button) and merchant view (with deactivate button).
+ * 
+ * @example
+ * ```tsx
+ * import { CampaignCard } from '@/components/CampaignCard';
+ * 
+ * export function CampaignList({ campaigns }) {
+ *   return (
+ *     <div className="grid">
+ *       {campaigns.map(campaign => (
+ *         <CampaignCard
+ *           key={campaign.id}
+ *           campaign={campaign}
+ *           onClaim={(id) => handleClaim(id)}
+ *           claiming={claimingId === campaign.id}
+ *         />
+ *       ))}
+ *     </div>
+ *   );
+ * }
+ * ```
+ * 
+ * @component
+ * @param {CampaignCardProps} props
+ * @returns {JSX.Element} Campaign card with claim/deactivate actions
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -8,11 +40,20 @@ import { useCountdown } from "@/hooks/useCountdown";
 import { Tooltip } from "@/components/Tooltip";
 import { TruncatedAddress } from "@/components/TruncatedAddress";
 
+/**
+ * Props for CampaignCard component
+ * 
+ * @typedef {Object} CampaignCardProps
+ * @property {Campaign} campaign - Campaign data to display
+ * @property {(id: number) => void} [onClaim] - Callback when user clicks claim button
+ * @property {boolean} [claiming] - Whether claim is in progress (disables button)
+ * @property {(id: number) => Promise<void>} [onDeactivate] - Callback to deactivate campaign (merchant only)
+ * @property {boolean} [isMerchantOwned] - Whether current user is the campaign merchant
+ */
 interface Props {
   campaign: Campaign;
   onClaim?: (id: number) => void;
   claiming?: boolean;
-  /** If provided, shows a Deactivate button for the campaign owner */
   onDeactivate?: (id: number) => Promise<void>;
   isMerchantOwned?: boolean;
 }
