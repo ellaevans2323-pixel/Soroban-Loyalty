@@ -1,3 +1,10 @@
+# [1.41.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.40.0...v1.41.0) (2026-05-29)
+
+
+### Features
+
+* add Winston structured logging with request tracing ([67ae50f](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/67ae50fa768a57deac38183d2cbdae4600b9d703)), closes [#4](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/4)
+
 # [1.40.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.39.0...v1.40.0) (2026-05-29)
 
 
