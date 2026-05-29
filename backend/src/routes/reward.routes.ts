@@ -65,31 +65,32 @@ rewardRouter.get("/user/:address/rewards", rewardsLimiter, asyncHandler(async (r
  * POST /user/:address/rewards/claim
  * Inserts a reward claim once per (user, campaign). Duplicate claims return 409.
  */
-rewardRouter.post("/user/:address/rewards/claim", async (req: Request, res: Response) => {
+rewardRouter.post("/user/:address/rewards/claim", asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
   if (!isValidStellarAddress(address)) {
-    return res.status(400).json({ error: "Invalid Stellar address" });
+    throw new BadRequestError("Invalid Stellar address", { address });
   }
 
   const parsed = ClaimSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "campaign_id and amount must be positive integers" });
+    throw new BadRequestError("campaign_id and amount must be positive integers");
   }
 
-    try {
-      await createRewardClaim({
-        user_address: address,
-        campaign_id,
-        amount,
-        redeemed: false,
-        redeemed_amount: 0,
-      });
-      res.status(201).json({ ok: true });
-    } catch (err) {
-      if (err instanceof DuplicateClaimError) {
-        return res.status(409).json({ error: err.message });
-      }
-      throw err;
+  const { campaign_id, amount } = parsed.data;
+
+  try {
+    await createRewardClaim({
+      user_address: address,
+      campaign_id,
+      amount,
+      redeemed: false,
+      redeemed_amount: 0,
+    });
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    if (err instanceof DuplicateClaimError) {
+      return res.status(409).json({ error: err.message });
     }
-  })
-);
+    throw err;
+  }
+}));

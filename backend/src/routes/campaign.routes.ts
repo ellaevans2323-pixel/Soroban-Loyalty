@@ -284,8 +284,7 @@ campaignRouter.delete("/:id", async (req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to delete campaign" });
   }
-  res.json({ ok: true });
-}));
+});
 
 /**
  * POST /campaigns/:id/restore
