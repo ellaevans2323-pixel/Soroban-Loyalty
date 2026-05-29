@@ -1,3 +1,12 @@
+# [1.40.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.39.0...v1.40.0) (2026-05-29)
+
+
+### Features
+
+* add fade-in page transitions with reduced-motion support ([dd2235b](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/dd2235bf244afb5d26b864b806273ced0c1b8f6a)), closes [#362](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/362)
+* Add pagination to GET /campaigns endpoint ([00ca227](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/00ca2276e9216d5fd1b820a34dae9905022aff0e))
+* add rate limiting middleware (global 100/min, rewards 20/min) ([69fa401](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/69fa401ef99d0d56d4534c4df5e4b971e8756566))
+
 # [1.39.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.38.0...v1.39.0) (2026-05-27)
 
 
