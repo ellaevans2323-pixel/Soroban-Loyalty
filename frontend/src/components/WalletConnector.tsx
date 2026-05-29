@@ -1,9 +1,44 @@
+/**
+ * WalletConnector Component
+ * 
+ * Displays wallet connection status and balance. Shows a "Connect Freighter" button
+ * when disconnected, and displays the user's address and LYT balance when connected.
+ * 
+ * Requires WalletContext to be available in the component tree.
+ * 
+ * @example
+ * ```tsx
+ * import { WalletConnector } from '@/components/WalletConnector';
+ * 
+ * export function Header() {
+ *   return (
+ *     <header>
+ *       <h1>My App</h1>
+ *       <WalletConnector />
+ *     </header>
+ *   );
+ * }
+ * ```
+ * 
+ * @component
+ * @returns {JSX.Element} Wallet connection UI or connected wallet display
+ */
+
 "use client";
 
 import { useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { Tooltip } from "@/components/Tooltip";
 
+/**
+ * FreighterModal Component
+ * 
+ * Modal dialog prompting user to install Freighter wallet extension.
+ * Provides download links for Chrome and Firefox.
+ * 
+ * @param {Object} props
+ * @param {() => void} props.onClose - Callback when user closes the modal
+ */
 function FreighterModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="freighter-modal-title">
