@@ -8,9 +8,17 @@ export interface AnalyticsData {
   claimsOverTime: { date: string; claims: number }[];
 }
 
+/**
+ * Aggregates reward claim metrics for the merchant analytics dashboard.
+ *
+ * @param days - Rolling window length in days (claims before this cutoff are excluded).
+ * @returns Totals, redemption rate, top campaigns, and daily claim counts.
+ * @throws Propagates database errors from any of the parallel aggregate queries.
+ */
 export async function getAnalytics(days: number): Promise<AnalyticsData> {
   const since = new Date(Date.now() - days * 86400 * 1000).toISOString();
 
+  // Run independent aggregates in parallel to keep dashboard latency low.
   const [totals, perCampaign, overTime] = await Promise.all([
     pool.query<{ total_claims: string; total_lyt: string; redeemed: string }>(
       `SELECT
@@ -44,6 +52,7 @@ export async function getAnalytics(days: number): Promise<AnalyticsData> {
   const totalClaimsNum = parseInt(total_claims, 10);
   const redeemedNum = parseInt(redeemed, 10);
 
+  // Redemption rate is a percentage of claims that have been marked redeemed in-window.
   return {
     totalClaims: totalClaimsNum,
     totalLYT: parseFloat(total_lyt),
