@@ -1,3 +1,11 @@
+# [1.43.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.42.0...v1.43.0) (2026-05-29)
+
+
+### Features
+
+* **#358:** Add skeleton shimmer animation utility ([d643827](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/d643827eee94e7e58b84753bf14028b3678de49b)), closes [#358](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/358)
+* **#364:** Implement responsive navigation drawer for mobile ([99db831](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/99db83151f2a8ab085eef6a056b2980202a1f837)), closes [#364](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/364)
+
 # [1.42.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.41.0...v1.42.0) (2026-05-29)
 
 
