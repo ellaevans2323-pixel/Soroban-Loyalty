@@ -8,6 +8,7 @@ import { NetworkStatusIndicator } from "@/components/NetworkStatusIndicator";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OnboardingModal } from "@/components/OnboardingModal";
+import { PageTransition } from "@/components/PageTransition";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -43,7 +44,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           <ThemeToggle />
         </div>
       </header>
-      <main className="site-main">{children}</main>
+      <main className="site-main"><PageTransition>{children}</PageTransition></main>
       <OnboardingModal />
     </>
   );
