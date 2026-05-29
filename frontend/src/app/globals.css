@@ -814,3 +814,42 @@ body {
     animation: none;
   }
 }
+
+/* ── Skeleton Shimmer Animation ───────────────────────────────────────────── */
+.skeleton {
+  background: var(--bg-input);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer gradient sweep animation */
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Respect prefers-reduced-motion: fall back to static grey */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+    background: transparent;
+  }
+}
