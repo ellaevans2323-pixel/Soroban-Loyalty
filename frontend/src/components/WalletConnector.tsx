@@ -29,6 +29,7 @@
 import { useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { Tooltip } from "@/components/Tooltip";
+import { TruncatedAddress } from "@/components/TruncatedAddress";
 
 /**
  * FreighterModal Component
@@ -111,9 +112,7 @@ export function WalletConnector() {
             </span>
           </Tooltip>
         </span>
-        <span style={{ fontFamily: "monospace", fontSize: 13 }}>
-          {publicKey.slice(0, 6)}…{publicKey.slice(-4)}
-        </span>
+        <TruncatedAddress address={publicKey} />
         <button onClick={disconnect} className="btn btn-outline">
           Disconnect
         </button>
