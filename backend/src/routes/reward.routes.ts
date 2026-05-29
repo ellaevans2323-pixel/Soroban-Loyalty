@@ -5,6 +5,7 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
 import { isValidStellarAddress } from "../utils/validation";
+import { rewardsLimiter } from "../middleware/rateLimiter";
 
 export const rewardRouter = Router();
 
@@ -47,7 +48,7 @@ const ClaimSchema = z.object({
  *       500:
  *         description: Server error.
  */
-rewardRouter.get("/user/:address/rewards", asyncHandler(async (req: Request, res: Response) => {
+rewardRouter.get("/user/:address/rewards", rewardsLimiter, asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
   if (!isValidStellarAddress(address)) {
     throw new BadRequestError("Invalid Stellar address", { address });
