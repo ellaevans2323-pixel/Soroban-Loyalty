@@ -16,6 +16,14 @@ export interface Campaign {
   deleted_at?: Date | null;
 }
 
+/**
+ * Inserts or updates a campaign row and writes an audit log entry in one transaction.
+ * Indexer-driven upserts rely on idempotent ON CONFLICT updates for safe replays.
+ *
+ * @param c - Campaign fields to persist (excluding auto-managed timestamps).
+ * @returns Resolves when the row and audit log are committed.
+ * @throws Re-throws any database error after rolling back the transaction.
+ */
 export async function upsertCampaign(c: Omit<Campaign, "created_at" | "display_order" | "deleted_at">): Promise<void> {
   const client = await pool.connect();
   try {
@@ -47,7 +55,12 @@ export async function upsertCampaign(c: Omit<Campaign, "created_at" | "display_o
 }
 
 /**
- * Temporarily maps a transaction hash to an image URL.
+ * Maps a campaign-creation transaction hash to an image URL before the indexer processes the event.
+ *
+ * @param txHash - On-chain transaction hash for the campaign creation.
+ * @param imageUrl - Public URL of the campaign image to attach later.
+ * @returns Resolves when the mapping row is upserted.
+ * @throws Propagates database errors from the insert/upsert query.
  */
 export async function saveCampaignImageMapping(txHash: string, imageUrl: string): Promise<void> {
   await pool.query(
@@ -58,7 +71,11 @@ export async function saveCampaignImageMapping(txHash: string, imageUrl: string)
 }
 
 /**
- * Retrieves the image URL for a given transaction hash, if any.
+ * Looks up a pre-registered campaign image URL by creation transaction hash.
+ *
+ * @param txHash - On-chain transaction hash used when the image was uploaded.
+ * @returns The mapped image URL, or `null` if no mapping exists.
+ * @throws Propagates database errors from the lookup query.
  */
 export async function getCampaignImageByTxHash(txHash: string): Promise<string | null> {
   const { rows } = await pool.query<{ image_url: string }>(
@@ -75,6 +92,15 @@ export interface CampaignFilters {
   expires_after?: number;
 }
 
+/**
+ * Lists non-deleted campaigns with optional filters and pagination.
+ *
+ * @param limit - Maximum number of rows to return (default 20).
+ * @param offset - Number of rows to skip for pagination (default 0).
+ * @param filters - Optional search, status, and expiration window filters.
+ * @returns Matching campaigns and the total count for the filter set.
+ * @throws Propagates database errors from the list or count queries.
+ */
 export async function getCampaigns(
   limit = 20,
   offset = 0,
@@ -83,6 +109,7 @@ export async function getCampaigns(
   const conditions: string[] = ["deleted_at IS NULL"];
   const params: unknown[] = [];
 
+  // Build parameterized WHERE clauses so filter values are never interpolated into SQL.
   if (filters.search) {
     params.push(`%${filters.search}%`);
     conditions.push(`name ILIKE $${params.length}`);
@@ -114,6 +141,13 @@ export async function getCampaigns(
   return { campaigns: rows, total: parseInt(countRows[0].count, 10) };
 }
 
+/**
+ * Fetches a single active (non-deleted) campaign by its on-chain ID.
+ *
+ * @param id - Campaign identifier from the Soroban contract.
+ * @returns The campaign row, or `null` if missing or soft-deleted.
+ * @throws Propagates database errors from the lookup query.
+ */
 export async function getCampaignById(id: number): Promise<Campaign | null> {
   const { rows } = await pool.query<Campaign>(
     `SELECT * FROM campaigns WHERE id = $1 AND deleted_at IS NULL`,
@@ -122,6 +156,14 @@ export async function getCampaignById(id: number): Promise<Campaign | null> {
   return rows[0] ?? null;
 }
 
+/**
+ * Soft-deletes a campaign by setting `deleted_at` and optionally records a deactivate audit entry.
+ *
+ * @param id - Campaign identifier to deactivate.
+ * @param actor - Merchant or admin address for the audit log (skipped when omitted).
+ * @returns `true` if a row was updated, `false` if already deleted or not found.
+ * @throws Re-throws any database error after rolling back the transaction.
+ */
 export async function softDeleteCampaign(id: number, actor?: string): Promise<boolean> {
   const client = await pool.connect();
   try {
@@ -130,6 +172,7 @@ export async function softDeleteCampaign(id: number, actor?: string): Promise<bo
       `UPDATE campaigns SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
       [id]
     );
+    // Audit only when a row was actually soft-deleted and the caller supplied an actor.
     if ((rowCount ?? 0) > 0 && actor) {
       await writeAuditLog({
         actor,
@@ -149,6 +192,13 @@ export async function softDeleteCampaign(id: number, actor?: string): Promise<bo
   }
 }
 
+/**
+ * Restores a previously soft-deleted campaign by clearing `deleted_at`.
+ *
+ * @param id - Campaign identifier to restore.
+ * @returns `true` if a deleted row was restored, `false` otherwise.
+ * @throws Propagates database errors from the update query.
+ */
 export async function restoreCampaign(id: number): Promise<boolean> {
   const { rowCount } = await pool.query(
     `UPDATE campaigns SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`,
@@ -158,13 +208,17 @@ export async function restoreCampaign(id: number): Promise<boolean> {
 }
 
 /**
- * Persists the display order of campaigns.
- * @param order - Array of campaign IDs in the desired display order.
+ * Persists the display order of campaigns for the merchant dashboard.
+ *
+ * @param order - Campaign IDs in the desired display order (index becomes `display_order`).
+ * @returns Resolves when all positions are committed.
+ * @throws Re-throws any database error after rolling back the transaction.
  */
 export async function reorderCampaigns(order: number[]): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // Assign contiguous display_order values so the UI sort is stable and gap-free.
     for (let i = 0; i < order.length; i++) {
       await client.query(
         `UPDATE campaigns SET display_order = $1 WHERE id = $2`,

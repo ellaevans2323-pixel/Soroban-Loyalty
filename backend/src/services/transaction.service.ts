@@ -11,6 +11,15 @@ export interface TransactionRecord {
   created_at: Date;
 }
 
+/**
+ * Lists indexed on-chain transactions for a user with campaign context.
+ *
+ * @param address - Stellar public key of the user.
+ * @param limit - Maximum rows per page (default 20).
+ * @param offset - Rows to skip for pagination (default 0).
+ * @returns Transaction rows (newest first) and the total matching count.
+ * @throws Propagates database errors from the list or count queries.
+ */
 export async function getTransactionsByUser(
   address: string,
   limit: number = 20,

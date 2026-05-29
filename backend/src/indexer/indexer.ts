@@ -4,8 +4,8 @@
  * Improvements over the naive fixed-interval poller:
  *  - Exponential backoff on RPC failures (base 2s, cap 60s, jitter ±20%)
  *  - Per-event retry up to MAX_EVENT_RETRIES times before dead-lettering
- *  - Last processed ledger persisted to DB so restarts resume from where
- *    they left off (no re-processing, no gaps)
+ *  - Last processed event paging token persisted to DB so restarts resume
+ *    after the last committed batch (idempotent upserts handle replays)
  *  - Indexer lag metric: current chain tip minus last processed ledger
  *  - Backoff delay and dead-letter counters exposed as Prometheus metrics
  */
@@ -45,7 +45,12 @@ let consecutiveFailures    = 0;
 
 let indexerInterval: ReturnType<typeof setInterval> | null = null;
 
-// Persist cursor so we don't re-process events on restart
+/**
+ * Reads the persisted Soroban RPC event paging token from `indexer_state`.
+ *
+ * @returns The last saved paging token, or `undefined` on a cold start.
+ * @throws Propagates database errors from the lookup query.
+ */
 export async function getCursor(): Promise<string | undefined> {
   const { rows } = await pool.query<{ value: string }>(
     `SELECT value FROM indexer_state WHERE key = 'cursor' LIMIT 1`
@@ -53,6 +58,13 @@ export async function getCursor(): Promise<string | undefined> {
   return rows[0]?.value;
 }
 
+/**
+ * Persists the Soroban RPC paging token so the next poll continues after this event.
+ *
+ * @param cursor - Paging token from the last event in a successfully polled batch.
+ * @returns Resolves when the cursor row is upserted.
+ * @throws Propagates database errors from the upsert query.
+ */
 export async function saveCursor(cursor: string): Promise<void> {
   await pool.query(
     `INSERT INTO indexer_state (key, value) VALUES ('cursor', $1)
@@ -87,6 +99,12 @@ async function deadLetterEvent(
   logger.error(`[indexer] Dead-lettered event txHash=${event.txHash}`, lastError);
 }
 
+/**
+ * Creates the `indexer_state` table if it does not exist (cursor storage).
+ *
+ * @returns Resolves when the DDL has been applied.
+ * @throws Propagates database errors from the CREATE TABLE statement.
+ */
 export async function ensureIndexerTable(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS indexer_state (
@@ -112,16 +130,35 @@ async function ensureDeadLetterTable(): Promise<void> {
 
 // ── XDR decoders ─────────────────────────────────────────────────────────────
 
+/**
+ * Decodes a Soroban `Address` ScVal to its string representation.
+ *
+ * @param val - XDR scalar value containing an address.
+ * @returns Stellar/strkey address string.
+ */
 export function decodeAddress(val: xdr.ScVal): string {
   return val.address().toString();
 }
 
+/**
+ * Decodes a Soroban `i128` ScVal to a JavaScript number.
+ * Safe for reward amounts within typical loyalty token ranges.
+ *
+ * @param val - XDR scalar value containing a signed 128-bit integer.
+ * @returns Numeric value (hi/lo limbs combined).
+ */
 export function decodeI128(val: xdr.ScVal): number {
   const hi = val.i128().hi().toBigInt();
   const lo = val.i128().lo().toBigInt();
   return Number((hi << 64n) | lo);
 }
 
+/**
+ * Decodes a Soroban `u64` ScVal to a JavaScript number.
+ *
+ * @param val - XDR scalar value containing an unsigned 64-bit integer.
+ * @returns Numeric value.
+ */
 export function decodeU64(val: xdr.ScVal): number {
   return Number(val.u64().toBigInt());
 }
@@ -129,9 +166,13 @@ export function decodeU64(val: xdr.ScVal): number {
 // ── Per-event processing with retry ──────────────────────────────────────────
 
 /**
- * Process a single event, retrying up to MAX_EVENT_RETRIES times on failure.
+ * Processes a single Soroban event with bounded retries.
  * If all retries are exhausted the event is dead-lettered and processing
- * continues (we never block the whole indexer on one bad event).
+ * continues (one bad event never blocks the whole indexer).
+ *
+ * @param event - Raw contract event from the Soroban RPC.
+ * @returns Resolves when the event is handled or dead-lettered.
+ * @throws Does not throw after retries are exhausted (event is dead-lettered instead).
  */
 export async function processEventWithRetry(
   event: SorobanRpc.Api.RawEventResponse
@@ -248,6 +289,13 @@ async function poll(): Promise<void> {
       { type: "contract", contractIds: [CAMPAIGN_CONTRACT, REWARDS_CONTRACT] },
     ];
 
+    // Ledger cursor strategy:
+    // - Cold start (no saved paging token): set startLedger to 1 so the RPC scans from
+    //   the beginning of chain history for the filtered contracts.
+    // - Warm start: pass the persisted paging token as `cursor` so each poll fetches only
+    //   events after the last committed position—no gaps and no full-chain replay.
+    // - After a non-empty batch: save the final event's pagingToken; a crash mid-batch may
+    //   re-deliver some events, which is safe because service upserts are idempotent.
     const result = await rpcServer.getEvents({
       startLedger: cursor ? undefined : 1,
       cursor,
@@ -313,10 +361,10 @@ async function poll(): Promise<void> {
 
 /**
  * Starts the background event indexer.
- * It polls the Soroban RPC for contract events (Campaign creation, Reward claim/redeem)
- * and persists them to the local database.
+ * Polls the Soroban RPC for campaign and reward contract events and persists them locally.
  *
- * @returns A promise that resolves when the indexer has started its initial poll.
+ * @returns Resolves after schema setup and the first poll cycle is scheduled.
+ * @throws Propagates errors from table setup or the initial poll if unrecoverable.
  */
 export async function startIndexer(): Promise<void> {
   await ensureIndexerTable();
@@ -338,7 +386,9 @@ export async function startIndexer(): Promise<void> {
 
 /**
  * Stops the background indexer polling loop.
- * Called during graceful shutdown to prevent the indexer from running after the server exits.
+ * Called during graceful shutdown to prevent polling after the server exits.
+ *
+ * @returns Nothing; clears the interval handle when running.
  */
 export function stopIndexer(): void {
   if (indexerInterval !== null) {
@@ -348,16 +398,34 @@ export function stopIndexer(): void {
   }
 }
 
+/**
+ * Computes exponential backoff delay with random jitter for RPC failures.
+ *
+ * @param failures - Consecutive failure count (0 returns the base delay).
+ * @returns Delay in milliseconds, clamped between BACKOFF_BASE_MS and BACKOFF_MAX_MS.
+ */
 export function calcBackoff(failures: number): number {
   if (failures <= 0) return BACKOFF_BASE_MS;
   const delay = BACKOFF_BASE_MS * Math.pow(BACKOFF_MULTIPLIER, failures - 1);
   const maxJitter = delay * JITTER_FACTOR;
+  // Jitter spreads retry storms when multiple indexer instances recover together.
   const jitter = Math.random() * (maxJitter * 2) - maxJitter;
   return Math.max(BACKOFF_BASE_MS, Math.min(BACKOFF_MAX_MS, delay + jitter));
 }
 
+/**
+ * Resets module-level backoff state (used by tests and after RPC recovery).
+ *
+ * @returns Nothing; sets `currentBackoffMs` to zero.
+ */
 export function resetBackoff(): void {
   currentBackoffMs = 0;
 }
 
+/**
+ * Promise-based sleep helper for poll backoff and per-event retries.
+ *
+ * @param ms - Milliseconds to wait.
+ * @returns Resolves after the delay elapses.
+ */
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

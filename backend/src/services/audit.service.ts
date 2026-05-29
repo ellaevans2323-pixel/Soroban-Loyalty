@@ -18,9 +18,13 @@ export interface AuditLogEntry {
 }
 
 /**
- * Writes an audit log entry.
- * Pass a PoolClient to write within an existing transaction (recommended).
- * Omit client to use the pool directly (auto-commit).
+ * Writes an audit log entry for a privileged or on-chain-derived action.
+ * Pass a PoolClient to participate in an existing transaction (recommended).
+ *
+ * @param entry - Actor, action, entity reference, and optional metadata payload.
+ * @param client - Optional pooled client for transactional writes with other mutations.
+ * @returns Resolves when the row is inserted.
+ * @throws Propagates database errors from the insert query.
  */
 export async function writeAuditLog(
   entry: Omit<AuditLogEntry, "id" | "created_at">,
@@ -45,12 +49,20 @@ export interface AuditLogFilters {
   offset?: number;
 }
 
+/**
+ * Queries audit logs with optional filters and pagination.
+ *
+ * @param filters - Actor, action, entity, date range, and pagination options.
+ * @returns Matching log entries and the total count for the filter set.
+ * @throws Propagates database errors from the list or count queries.
+ */
 export async function queryAuditLogs(
   filters: AuditLogFilters = {}
 ): Promise<{ logs: AuditLogEntry[]; total: number }> {
   const conditions: string[] = [];
   const params: unknown[] = [];
 
+  // Append only provided filters so empty criteria return the full audit trail.
   if (filters.actor) { params.push(filters.actor); conditions.push(`actor = $${params.length}`); }
   if (filters.action) { params.push(filters.action); conditions.push(`action = $${params.length}`); }
   if (filters.entity_type) { params.push(filters.entity_type); conditions.push(`entity_type = $${params.length}`); }
