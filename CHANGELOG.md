@@ -1,3 +1,16 @@
+# [1.42.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.41.0...v1.42.0) (2026-05-29)
+
+
+### Bug Fixes
+
+* **#371:** Audit and remove unused npm dependencies ([4a6b3d9](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/4a6b3d9f55c573df4366ebef3151d5ed794cbc26)), closes [#371](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/371)
+* **#372:** Audit and update .env.example template ([fbf20ef](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/fbf20ef835b6327d0743dfa6b2e8edd0fe8c2b28)), closes [#372](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/372)
+
+
+### Features
+
+* **#366:** Add wallet address truncation with copy-to-clipboard ([3cf630f](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/3cf630f7ef0bd7387e4e8fe85920b72db50ca3c8)), closes [#366](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/366)
+
 # [1.41.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.40.0...v1.41.0) (2026-05-29)
 
 
