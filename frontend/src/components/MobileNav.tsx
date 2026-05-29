@@ -1,3 +1,21 @@
+/**
+ * MobileNav Component
+ * 
+ * Responsive navigation drawer for mobile viewports (< 768px).
+ * Features:
+ * - Hamburger menu button that toggles a full-height side drawer
+ * - Smooth slide-in/out animation with backdrop
+ * - Closes on route change, outside click, or Escape key
+ * - Prevents body scroll when drawer is open
+ * - Full keyboard accessibility (Tab, Escape)
+ * - Respects prefers-reduced-motion
+ * 
+ * @example
+ * ```tsx
+ * <MobileNav />
+ * ```
+ */
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -15,64 +33,92 @@ export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const drawerRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
-  // Close on route change
-  useEffect(() => { setOpen(false); }, [pathname]);
+  // Close drawer when route changes
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
-  // Close on outside click
+  // Close drawer on outside click (backdrop or outside drawer)
   useEffect(() => {
     if (!open) return;
+
     function handleClick(e: MouseEvent) {
-      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      // Close if clicking backdrop or outside drawer
+      if (backdropRef.current?.contains(target) || 
+          (drawerRef.current && !drawerRef.current.contains(target))) {
         setOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  // Close on Escape
+  // Close drawer on Escape key
   useEffect(() => {
     if (!open) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+      }
     }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
   // Prevent body scroll when drawer is open
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [open]);
 
   return (
     <>
-      {/* Hamburger button — visible only on mobile */}
+      {/* Hamburger button — visible only on mobile (< 768px) */}
       <button
         className="hamburger"
-        aria-label={open ? "Close menu" : "Open menu"}
+        aria-label={open ? "Close navigation menu" : "Open navigation menu"}
         aria-expanded={open}
         aria-controls="mobile-drawer"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((prev) => !prev)}
       >
-        <span className={`hamburger-bar ${open ? "bar-top-open" : ""}`} />
-        <span className={`hamburger-bar ${open ? "bar-mid-open" : ""}`} />
-        <span className={`hamburger-bar ${open ? "bar-bot-open" : ""}`} />
+        <span className={`hamburger-bar ${open ? "bar-top-open" : ""}`} aria-hidden="true" />
+        <span className={`hamburger-bar ${open ? "bar-mid-open" : ""}`} aria-hidden="true" />
+        <span className={`hamburger-bar ${open ? "bar-bot-open" : ""}`} aria-hidden="true" />
       </button>
 
-      {/* Backdrop */}
-      {open && <div className="drawer-backdrop" aria-hidden="true" />}
+      {/* Backdrop — semi-transparent overlay behind drawer */}
+      {open && (
+        <div
+          ref={backdropRef}
+          className="drawer-backdrop"
+          aria-hidden="true"
+          onClick={() => setOpen(false)}
+        />
+      )}
 
-      {/* Slide-in drawer */}
+      {/* Slide-in drawer with navigation links */}
       <div
         id="mobile-drawer"
         ref={drawerRef}
         className={`mobile-drawer ${open ? "drawer-open" : ""}`}
+        role="navigation"
+        aria-label="Mobile navigation"
         aria-hidden={!open}
       >
-        <nav aria-label="Mobile navigation">
+        <nav>
           {NAV_LINKS.map(({ href, label }) => (
             <Link
               key={href}
@@ -80,6 +126,7 @@ export function MobileNav() {
               className={`drawer-link ${pathname === href ? "drawer-link-active" : ""}`}
               onClick={() => setOpen(false)}
               tabIndex={open ? 0 : -1}
+              aria-current={pathname === href ? "page" : undefined}
             >
               {label}
             </Link>
