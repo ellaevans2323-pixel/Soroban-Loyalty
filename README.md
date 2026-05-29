@@ -236,6 +236,8 @@ Pool exhaustion errors are logged at `error` level with `totalCount`, `idleCount
 
 ## Security Notes
 
+See [SECURITY.md](./SECURITY.md) for the vulnerability reporting process and response timeline.
+
 - All sensitive contract functions use `require_auth()`
 - Double-claim prevention: claimed state is written **before** external calls (reentrancy guard)
 - Overflow-safe arithmetic via `checked_add` / Rust's `overflow-checks = true` in release
