@@ -10,6 +10,7 @@ import { RewardList } from "@/components/RewardList";
 import { NetworkBanner } from "@/components/NetworkBanner";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { EmptyState } from "@/components/EmptyState";
+import { CampaignListSkeleton, RewardListSkeleton } from "@/components/Skeleton";
 import Link from "next/link";
 
 const PAGE_SIZE = 20;
@@ -21,6 +22,8 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(true);
+  const [loadingRewards, setLoadingRewards] = useState(true);
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
@@ -52,6 +55,7 @@ export default function DashboardPage() {
 
   const loadCampaigns = useCallback(
     async (nextOffset: number, replace = false) => {
+      if (replace) setLoadingCampaigns(true);
       setLoadingMore(true);
       try {
         const response = await api.getCampaigns(PAGE_SIZE, nextOffset);
@@ -62,6 +66,7 @@ export default function DashboardPage() {
         console.error("Failed to load campaigns", error);
       } finally {
         setLoadingMore(false);
+        if (replace) setLoadingCampaigns(false);
       }
     },
     []
@@ -73,7 +78,9 @@ export default function DashboardPage() {
         setRewards(r.rewards);
         const claimedIds = r.rewards.filter(rw => !rw.redeemed).map(rw => rw.campaign_id);
         setOptimisticClaimed(new Set(claimedIds));
-      }).catch(console.error);
+      }).catch(console.error).finally(() => setLoadingRewards(false));
+    } else {
+      setLoadingRewards(false);
     }
   }, [publicKey]);
 
@@ -166,7 +173,9 @@ export default function DashboardPage() {
       
       <div style={{ marginBottom: "2rem" }}>
         <h1 className="page-title">Active Campaigns</h1>
-        {campaigns.length === 0 ? (
+        {loadingCampaigns ? (
+          <CampaignListSkeleton />
+        ) : campaigns.length === 0 ? (
           <EmptyState
             illustration="campaigns"
             title="No active campaigns"
@@ -196,11 +205,15 @@ export default function DashboardPage() {
               View History
             </Link>
           </div>
+          {loadingRewards ? (
+            <RewardListSkeleton />
+          ) : (
           <RewardList
             rewards={rewards}
             onRedeem={networkDisabled ? undefined : handleRedeem}
             redeeming={redeemingId}
           />
+          )}
         </section>
       )}
 
