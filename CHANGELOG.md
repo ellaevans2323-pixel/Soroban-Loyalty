@@ -1,3 +1,11 @@
+# [1.45.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.44.0...v1.45.0) (2026-05-30)
+
+
+### Features
+
+* **#379, #381:** Add comprehensive unit tests for WalletContext and CampaignCard ([b5956aa](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/b5956aadd89430fbeb9bb8c73a0689aebd827112)), closes [#379](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/379) [#381](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/381)
+* **#380, #382:** Add GitHub Actions CI and CD pipelines ([2a0dee5](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/2a0dee582ead7fb8c4ece268b2bfb74e5a061bee)), closes [#380](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/380) [#382](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/382)
+
 # [1.44.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.43.0...v1.44.0) (2026-05-30)
 
 
