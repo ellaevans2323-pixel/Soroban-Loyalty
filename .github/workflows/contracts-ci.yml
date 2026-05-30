@@ -1,0 +1,69 @@
+name: Contracts CI
+
+on:
+  push:
+    paths:
+      - "contracts/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+  pull_request:
+    paths:
+      - "contracts/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+
+env:
+  WASM_SIZE_LIMIT_KB: 64
+
+jobs:
+  build-test-lint:
+    name: Build, Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.85.0"
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      - name: Cache Cargo registry and build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Run cargo test
+        run: cargo test --workspace
+
+      - name: Run cargo clippy with --deny warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build contracts (wasm32)
+        run: cargo build --target wasm32-unknown-unknown --release --workspace
+
+      - name: Check WASM sizes
+        run: |
+          LIMIT=$(( ${WASM_SIZE_LIMIT_KB} * 1024 ))
+          FAILED=0
+          echo "WASM size limit: ${WASM_SIZE_LIMIT_KB} KB"
+          echo "---"
+          for wasm in target/wasm32-unknown-unknown/release/*.wasm; do
+            SIZE=$(stat -c%s "$wasm")
+            SIZE_KB=$(( SIZE / 1024 ))
+            NAME=$(basename "$wasm")
+            echo "${NAME}: ${SIZE_KB} KB (${SIZE} bytes)"
+            if [ "$SIZE" -gt "$LIMIT" ]; then
+              echo "  FAIL: ${NAME} exceeds ${WASM_SIZE_LIMIT_KB} KB limit"
+              FAILED=1
+            fi
+          done
+          exit $FAILED

@@ -1,34 +1,35 @@
 "use client";
 
 import { useState } from "react";
+import { useSorobanTransaction } from "@/hooks/useSorobanTransaction";
+import { SorobanErrorBoundary } from "./SorobanErrorBoundary";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 interface Props {
   balance: number;
   onRedeem: (amount: number) => Promise<void>;
 }
 
-export function RedeemForm({ balance, onRedeem }: Props) {
+function RedeemFormContent({ balance, onRedeem }: Props) {
   const [amount, setAmount] = useState("");
-  const [step, setStep] = useState<"input" | "confirm">("input");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const { execute, loading, error, clearError } = useSorobanTransaction({
+    showToast: true,
+    onSuccess: () => {
+      setAmount("");
+      setConfirming(false);
+      clearError();
+    }
+  });
 
   const parsed = parseFloat(amount);
   const isValid = !isNaN(parsed) && parsed > 0 && parsed <= balance;
 
   const handleConfirm = async () => {
-    setLoading(true);
-    setError(null);
-    try {
+    if (!isValid) return;
+    await execute(async () => {
       await onRedeem(parsed);
-      setAmount("");
-      setStep("input");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Redeem failed");
-      setStep("input");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (
@@ -41,63 +42,65 @@ export function RedeemForm({ balance, onRedeem }: Props) {
           </div>
         </div>
 
-        {error && <div className="alert alert-error">{error}</div>}
-
-        {step === "input" ? (
-          <>
-            <div className="form-group">
-              <label>Amount to Redeem (LYT)</label>
-              <input
-                type="number"
-                min="1"
-                max={balance}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder={`Max ${balance.toLocaleString()}`}
-              />
-              {amount && !isValid && (
-                <span style={{ fontSize: "0.8rem", color: "#f87171" }}>
-                  {parsed > balance ? "Exceeds balance" : "Enter a valid amount"}
-                </span>
-              )}
-            </div>
-            <button
-              className="btn btn-primary"
-              disabled={!isValid}
-              onClick={() => setStep("confirm")}
-              style={{ width: "100%" }}
-            >
-              Redeem LYT
-            </button>
-          </>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <p style={{ color: "#94a3b8" }}>
-              You are about to burn{" "}
-              <strong style={{ color: "#f87171" }}>{parsed.toLocaleString()} LYT</strong>.
-              This action cannot be undone.
-            </p>
-            <div style={{ display: "flex", gap: 8 }}>
+        {error && (
+          <div className="alert alert-error" style={{ marginBottom: "1rem" }}>
+            {error.userMessage}
+            {error.shouldShowRetry && (
               <button
-                className="btn btn-outline"
-                onClick={() => setStep("input")}
-                disabled={loading}
-                style={{ flex: 1 }}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
                 onClick={handleConfirm}
-                disabled={loading}
-                style={{ flex: 1 }}
+                style={{ marginLeft: "0.5rem", textDecoration: "underline" }}
               >
-                {loading ? "Confirming…" : "Confirm & Burn"}
+                Retry
               </button>
-            </div>
+            )}
           </div>
         )}
+
+        <div className="form-group">
+          <label>Amount to Redeem (LYT)</label>
+          <input
+            type="number"
+            min="1"
+            max={balance}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={`Max ${balance.toLocaleString()}`}
+            disabled={loading}
+          />
+          {amount && !isValid && (
+            <span style={{ fontSize: "0.8rem", color: "#f87171" }}>
+              {parsed > balance ? "Exceeds balance" : "Enter a valid amount"}
+            </span>
+          )}
+        </div>
+
+        <button
+          className="btn btn-primary"
+          disabled={!isValid || loading}
+          onClick={() => setConfirming(true)}
+          style={{ width: "100%" }}
+        >
+          Redeem LYT
+        </button>
+
+        <ConfirmDialog
+          open={confirming}
+          title="Burn LYT tokens?"
+          description={`You are about to permanently burn ${isValid ? parsed.toLocaleString() : "0"} LYT. This action cannot be undone.`}
+          confirmLabel="Confirm & Burn"
+          loading={loading}
+          onConfirm={handleConfirm}
+          onCancel={() => setConfirming(false)}
+        />
       </div>
     </div>
+  );
+}
+
+export function RedeemForm(props: Props) {
+  return (
+    <SorobanErrorBoundary>
+      <RedeemFormContent {...props} />
+    </SorobanErrorBoundary>
   );
 }

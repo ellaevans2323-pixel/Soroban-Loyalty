@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - security
+    assignees:
+      - maintainer
+
+  - package-ecosystem: npm
+    directory: "/backend"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - security
+    assignees:
+      - maintainer
+
+  - package-ecosystem: npm
+    directory: "/frontend"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - security
+    assignees:
+      - maintainer
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+    assignees:
+      - maintainer

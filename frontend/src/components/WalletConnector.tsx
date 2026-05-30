@@ -1,8 +1,45 @@
+/**
+ * WalletConnector Component
+ * 
+ * Displays wallet connection status and balance. Shows a "Connect Freighter" button
+ * when disconnected, and displays the user's address and LYT balance when connected.
+ * 
+ * Requires WalletContext to be available in the component tree.
+ * 
+ * @example
+ * ```tsx
+ * import { WalletConnector } from '@/components/WalletConnector';
+ * 
+ * export function Header() {
+ *   return (
+ *     <header>
+ *       <h1>My App</h1>
+ *       <WalletConnector />
+ *     </header>
+ *   );
+ * }
+ * ```
+ * 
+ * @component
+ * @returns {JSX.Element} Wallet connection UI or connected wallet display
+ */
+
 "use client";
 
 import { useState } from "react";
 import { useWallet } from "@/context/WalletContext";
+import { Tooltip } from "@/components/Tooltip";
+import { TruncatedAddress } from "@/components/TruncatedAddress";
 
+/**
+ * FreighterModal Component
+ * 
+ * Modal dialog prompting user to install Freighter wallet extension.
+ * Provides download links for Chrome and Firefox.
+ * 
+ * @param {Object} props
+ * @param {() => void} props.onClose - Callback when user closes the modal
+ */
 function FreighterModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="freighter-modal-title">
@@ -39,7 +76,7 @@ function FreighterModal({ onClose }: { onClose: () => void }) {
 }
 
 export function WalletConnector() {
-  const { publicKey, connecting, connect, disconnect } = useWallet();
+  const { publicKey, connecting, lytBalance, balanceLoading, connect, disconnect } = useWallet();
   const [showModal, setShowModal] = useState(false);
 
   const handleConnect = async () => {
@@ -59,9 +96,23 @@ export function WalletConnector() {
   if (publicKey) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontFamily: "monospace", fontSize: 13 }}>
-          {publicKey.slice(0, 6)}…{publicKey.slice(-4)}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            color: "var(--text-secondary)",
+          }}
+        >
+          {balanceLoading ? <span className="inline-spinner" aria-hidden="true" /> : null}
+          <Tooltip content="Your LYT token balance — earned by claiming campaigns">
+            <span aria-live="polite" aria-busy={balanceLoading}>
+              {lytBalance.toLocaleString()} LYT
+            </span>
+          </Tooltip>
         </span>
+        <TruncatedAddress address={publicKey} />
         <button onClick={disconnect} className="btn btn-outline">
           Disconnect
         </button>

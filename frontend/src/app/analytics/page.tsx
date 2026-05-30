@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { api, AnalyticsData } from "@/lib/api";
+import { ExperimentStatsPanel } from "@/components/ExperimentStatsPanel";
 
-// Dynamically import Recharts components (client-only)
+import { StatCardsSkeleton, BarChartSkeleton, LineChartSkeleton } from "@/components/ChartSkeleton";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
 const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
 const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
@@ -27,7 +30,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadAnalytics = () => {
     setLoading(true);
     setError(null);
     api
@@ -35,6 +38,11 @@ export default function AnalyticsPage() {
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadAnalytics();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   return (
@@ -54,11 +62,18 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <ErrorState message={error} onRetry={loadAnalytics} />}
 
-      {loading ? (
-        <p className="empty-state">Loading analytics…</p>
-      ) : data ? (
+      <div style={{ opacity: loading ? 1 : 0, transition: "opacity 0.2s", position: loading ? "static" : "absolute", pointerEvents: "none", display: loading ? "block" : "none" }}
+           aria-hidden={!loading}>
+        <StatCardsSkeleton />
+        <h2 className="section-title">Claims per Campaign</h2>
+        <BarChartSkeleton />
+        <h2 className="section-title" style={{ marginTop: 40 }}>Claims Over Time</h2>
+        <LineChartSkeleton />
+      </div>
+
+      {!loading && data ? (
         <>
           {/* Stat cards */}
           <div className="stat-grid">
@@ -118,7 +133,12 @@ export default function AnalyticsPage() {
               </details>
             </>
           ) : (
-            <p className="empty-state">No claim data for this period.</p>
+            <EmptyState
+              illustration="campaigns"
+              title="No campaign data"
+              description="No claim data for this period."
+              cta={{ label: "Create a campaign", href: "/merchant" }}
+            />
           )}
 
           {/* Line chart: claims over time */}
@@ -162,10 +182,18 @@ export default function AnalyticsPage() {
               </details>
             </>
           ) : (
-            <p className="empty-state">No time-series data for this period.</p>
+            <EmptyState
+              illustration="transactions"
+              title="No time-series data"
+              description="No time-series data for this period."
+            />
           )}
         </>
       ) : null}
+
+      {/* A/B Experiment Results */}
+      <h2 className="section-title" style={{ marginTop: 40 }}>A/B Experiment Results</h2>
+      <ExperimentStatsPanel />
     </div>
   );
 }

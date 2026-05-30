@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Campaign } from "@/lib/api";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 type SortKey = "id" | "reward_amount" | "total_claimed" | "expiration";
 type SortDir = "asc" | "desc";
@@ -11,9 +13,10 @@ const PAGE_SIZE = 20;
 interface Props {
   campaigns: Campaign[];
   onDeactivate?: (id: number) => Promise<void>;
+  merchantPublicKey?: string;
 }
 
-export function CampaignTable({ campaigns, onDeactivate }: Props) {
+export function CampaignTable({ campaigns, onDeactivate, merchantPublicKey }: Props) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("id");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -106,7 +109,11 @@ export function CampaignTable({ campaigns, onDeactivate }: Props) {
               const status = getStatus(c);
               return (
                 <tr key={c.id} style={{ borderBottom: "1px solid #1a1d27" }}>
-                  <td style={{ padding: "10px 12px" }}>#{c.id}</td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <Link href={`/campaigns/${c.id}`} style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>
+                      #{c.id}
+                    </Link>
+                  </td>
                   <td style={{ padding: "10px 12px" }}>{c.reward_amount.toLocaleString()} LYT</td>
                   <td style={{ padding: "10px 12px" }}>{c.total_claimed}</td>
                   <td style={{ padding: "10px 12px", fontSize: "0.8rem" }}>
@@ -117,34 +124,14 @@ export function CampaignTable({ campaigns, onDeactivate }: Props) {
                   </td>
                   {onDeactivate && (
                     <td style={{ padding: "10px 12px" }}>
-                      {confirmId === c.id ? (
-                        <span style={{ display: "flex", gap: 6 }}>
-                          <button
-                            className="btn btn-outline"
-                            style={{ padding: "4px 10px", fontSize: "0.75rem" }}
-                            onClick={() => setConfirmId(null)}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            className="btn btn-primary"
-                            style={{ padding: "4px 10px", fontSize: "0.75rem", background: "#dc2626" }}
-                            disabled={deactivating === c.id}
-                            onClick={() => handleDeactivate(c.id)}
-                          >
-                            {deactivating === c.id ? "…" : "Confirm"}
-                          </button>
-                        </span>
-                      ) : (
-                        <button
-                          className="btn btn-outline"
-                          style={{ padding: "4px 10px", fontSize: "0.75rem" }}
-                          disabled={!c.active}
-                          onClick={() => setConfirmId(c.id)}
-                        >
-                          Deactivate
-                        </button>
-                      )}
+                      <button
+                        className="btn btn-outline"
+                        style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+                        disabled={!c.active}
+                        onClick={() => setConfirmId(c.id)}
+                      >
+                        Deactivate
+                      </button>
                     </td>
                   )}
                 </tr>
@@ -165,6 +152,16 @@ export function CampaignTable({ campaigns, onDeactivate }: Props) {
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmId !== null}
+        title="Deactivate campaign?"
+        description={`Campaign #${confirmId} will be deactivated immediately. Users will no longer be able to claim rewards. This cannot be undone from this interface.`}
+        confirmLabel="Deactivate"
+        loading={deactivating !== null}
+        onConfirm={() => confirmId !== null && handleDeactivate(confirmId)}
+        onCancel={() => setConfirmId(null)}
+      />
     </div>
   );
 }
