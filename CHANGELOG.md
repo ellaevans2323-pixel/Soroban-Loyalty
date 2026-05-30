@@ -1,3 +1,11 @@
+## [1.47.1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.47.0...v1.47.1) (2026-05-30)
+
+
+### Bug Fixes
+
+* **#374,#376:** Optimize Dockerfiles for production ([5cbbf08](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/5cbbf08dced2c3fef9aa5f72f87b9556dc76bd60)), closes [#374](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/374) [#376](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/376) [#374](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/374) [#376](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/376)
+* **#378:** Add health check to frontend service in docker-compose ([4503063](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/45030638b31dcd0a2d799a74a461865863cbdbd8)), closes [#378](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/378)
+
 # [1.47.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.46.0...v1.47.0) (2026-05-30)
 
 
