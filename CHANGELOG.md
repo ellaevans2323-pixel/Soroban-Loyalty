@@ -1,3 +1,14 @@
+# [1.46.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.45.0...v1.46.0) (2026-05-30)
+
+
+### Features
+
+* **#383:** Add comprehensive RewardList component tests ([3e6b3a5](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/3e6b3a501537d918958d08024e905a62287c0b30)), closes [#383](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/383)
+* **#384:** Add Rust contract build and test to CI ([ae48cff](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/ae48cffa4ddc22e2026d645ac71e7dbddc15e9ae)), closes [#384](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/384)
+* **#385:** Add end-to-end test for claim reward flow ([c2ca3cb](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/c2ca3cb59bf8f43b36deece9a8e5cb20aa914821)), closes [#385](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/385)
+* **#386:** Configure Nginx as reverse proxy for production ([e18375b](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/e18375b9e65973246d14f2cb533fff8f9fa6d23d)), closes [#386](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/386)
+* add reusable ErrorState component with retry ([15197b6](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/15197b65c0117eb541ceea8ea40027c24643fd54))
+
 # [1.45.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.44.0...v1.45.0) (2026-05-30)
 
 
