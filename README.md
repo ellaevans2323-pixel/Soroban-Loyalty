@@ -209,3 +209,19 @@ soroban-loyalty/
 - Overflow-safe arithmetic via `checked_add` / Rust's `overflow-checks = true` in release
 - Token minting is restricted to the Rewards contract (set as admin during deploy)
 - No secret keys in code — all keys via environment variables
+
+---
+
+## Contributing
+
+We welcome contributions from developers of all skill levels! 
+
+**New to the project?** Check out our [Onboarding Guide](docs/onboarding.md) for a step-by-step walkthrough.
+
+**Ready to contribute?** See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- How to find issues to work on
+- Development setup and workflow
+- Code style guidelines
+- Pull request process
+
+Looking for a good first issue? Check out issues labeled [`good first issue`](https://github.com/your-org/soroban-loyalty/labels/good%20first%20issue).
