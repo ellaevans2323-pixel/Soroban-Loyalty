@@ -1,3 +1,11 @@
+# [1.44.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.43.0...v1.44.0) (2026-05-30)
+
+
+### Features
+
+* **backend:** add reusable Stellar address format validator ([a4050ac](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/a4050ac12a0b419729a403fc7b74ea7379e2408c)), closes [#326](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/326)
+* **frontend:** implement dark mode toggle ([695d289](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/695d28920c8ef29d1f4f991611d67c757b019978)), closes [#327](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/327)
+
 # [1.43.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.42.0...v1.43.0) (2026-05-29)
 
 
