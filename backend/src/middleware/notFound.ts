@@ -1,6 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { NotFoundError } from '../utils/errors';
+import { Request, Response } from 'express';
 
-export function notFoundHandler(req: Request, res: Response, next: NextFunction) {
-  next(new NotFoundError(`Route ${req.method} ${req.path}`));
+export function notFoundHandler(_req: Request, res: Response): void {
+  res.status(404).json({ error: 'Not found' });
 }

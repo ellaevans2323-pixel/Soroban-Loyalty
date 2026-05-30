@@ -17,6 +17,8 @@ import {
 } from "./metrics";
 import { errorAlertMiddleware, requestLogger } from "./logger";
 import { globalLimiter, rewardsLimiter } from "./middleware/rateLimiter";
+import { notFoundHandler } from "./middleware/notFound";
+import { errorHandler } from "./middleware/errorHandler";
 
 export function createApp() {
   const app = express();
@@ -118,6 +120,8 @@ export function createApp() {
   app.use("/merchant/campaigns", requireAuth, campaignRouter);
 
   app.use(errorAlertMiddleware);
+  app.use(notFoundHandler);
+  app.use(errorHandler);
 
   return app;
 }

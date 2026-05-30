@@ -193,4 +193,12 @@ describe("GET endpoints integration", () => {
     expect(joinedPlan).toContain("campaigns");
     expect(joinedPlan).toMatch(/Index Scan|Bitmap Heap Scan|Seq Scan/);
   });
+
+  it("GET /unknown-route returns 404 JSON with error: Not found", async () => {
+    const response = await request(app).get("/this-route-does-not-exist");
+
+    expect(response.status).toBe(404);
+    expect(response.headers["content-type"]).toMatch(/application\/json/);
+    expect(response.body).toEqual({ error: "Not found" });
+  });
 });
