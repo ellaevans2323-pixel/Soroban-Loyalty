@@ -6,6 +6,7 @@ import {
   reorderCampaigns,
   softDeleteCampaign,
   restoreCampaign,
+  upsertCampaign,
   CampaignFilters,
 } from "../services/campaign.service";
 import { redisClient } from "../lib/redis";
@@ -14,8 +15,21 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams, validateQuery } from "../middleware/validation";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 import { parseStrictInteger } from "../utils/validation";
+import { sanitizeBody } from "../middleware/sanitize";
 
 export const campaignRouter = Router();
+
+// Campaign creation validation schema (#282)
+const CreateCampaignSchema = z.object({
+  name: z.string().min(1, "name is required").max(100, "name must be ≤ 100 characters"),
+  reward_amount: z.number().int().positive("reward_amount must be a positive integer"),
+  expires_at: z
+    .string()
+    .datetime({ message: "expires_at must be a valid ISO 8601 timestamp" })
+    .refine((val) => new Date(val) > new Date(), { message: "expires_at must be a future date" }),
+  merchant: z.string().optional(),
+  description: z.string().optional(),
+});
 
 // Route-specific validation schemas
 const CampaignQuerySchema = z.object({
@@ -302,14 +316,8 @@ campaignRouter.post("/:id/restore", async (req: Request, res: Response) => {
   }
 });
 
-campaignRouter.post("/", sanitizeBody, async (req: Request, res: Response) => {
-  const parsed = CreateCampaignSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  try {
-    const { name: _name, description: _desc, ...rest } = parsed.data;
-    await upsertCampaign({ ...rest, id: Date.now(), active: true, total_claimed: 0 });
-    res.status(201).json({ ok: true });
-  } catch {
-    res.status(500).json({ error: "Failed to create campaign" });
-  }
-});
+campaignRouter.post("/", sanitizeBody, validateBody(CreateCampaignSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { name: _name, description: _desc, ...rest } = req.body;
+  await upsertCampaign({ ...rest, id: Date.now(), active: true, total_claimed: 0 });
+  res.status(201).json({ ok: true });
+}));
