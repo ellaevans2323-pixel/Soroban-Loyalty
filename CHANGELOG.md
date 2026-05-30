@@ -1,3 +1,10 @@
+# [1.47.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.46.0...v1.47.0) (2026-05-30)
+
+
+### Features
+
+* **backend:** add owner_address to campaigns table and routes ([ecaaba6](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/ecaaba6fcd7e1d059926bfb3e363e070c4b7bfdd)), closes [#325](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/325)
+
 # [1.46.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.45.0...v1.46.0) (2026-05-30)
 
 
