@@ -1,3 +1,12 @@
+# [1.52.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.51.0...v1.52.0) (2026-05-31)
+
+
+### Features
+
+* **backend:** Implement database migration system ([f293bde](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/f293bde49cdd00133c4af7803d522ef401adfaa2))
+* **frontend:** Add transaction hash link to success toasts ([eae9570](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/eae9570102d5b4fd86541b2502056c7027be1839))
+* **frontend:** Implement daily/weekly aggregation for claims analytics chart ([629c214](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/629c2144d46d8d5a74d5744c776c177a81abe46f))
+
 # [1.51.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.50.0...v1.51.0) (2026-05-31)
 
 
