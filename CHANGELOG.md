@@ -1,3 +1,12 @@
+# [1.50.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.49.0...v1.50.0) (2026-05-31)
+
+
+### Features
+
+* **backend:** add input validation middleware for campaign creation ([e67f848](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/e67f84834501057a12ebf413eff454f3c32b2e44)), closes [#282](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/282)
+* **backend:** implement structured error handling middleware ([8fc62c2](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/8fc62c26d51c6e7087b4dc84e635122c1afa841d)), closes [#284](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/284)
+* **frontend:** add loading skeletons to campaign list and reward list ([5388eac](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/5388eac0bbb1e07af0e8ff3459341afbd6b0dbe9)), closes [#281](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/281) [#283](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/283)
+
 # [1.49.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.48.0...v1.49.0) (2026-05-31)
 
 
