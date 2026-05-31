@@ -1,3 +1,13 @@
+# [1.51.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.50.0...v1.51.0) (2026-05-31)
+
+
+### Features
+
+* **backend:** add GET /campaigns/:id endpoint and fix route file errors ([287e17b](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/287e17be900700c56d3e8833ff1411a5bab56082)), closes [#280](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/280)
+* **backend:** add structured request logging with correlation IDs ([b3d91a0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/b3d91a005dbe1a08978b1bb487a675f042e45e47)), closes [#298](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/298)
+* **frontend:** highlight active navigation link in sidebar/navbar ([a26dbcf](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/a26dbcfbdfff76471399f6be371a93accae3f6e3)), closes [#297](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/297)
+* **frontend:** implement claim button state machine (idle→loading→success→error) ([669023a](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/669023a9c574987bc43408ff0d7424e50750e418)), closes [#299](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/299)
+
 # 1.0.0 (2026-05-31)
 
 
