@@ -10,6 +10,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { PageTransition } from "@/components/PageTransition";
+import { NavLinks } from "@/components/NavLinks";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,10 +34,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <header className="site-header">
         <Link href="/" className="logo">SorobanLoyalty</Link>
         <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/merchant">Merchant</Link>
-          <Link href="/transactions">Transactions</Link>
-          <Link href="/analytics">Analytics</Link>
+          <NavLinks />
         </nav>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <LanguageSwitcher />

@@ -7,7 +7,6 @@ import {
   reorderCampaigns,
   softDeleteCampaign,
   restoreCampaign,
-  upsertCampaign,
   CampaignFilters,
 } from "../services/campaign.service";
 import { redisClient } from "../lib/redis";
@@ -20,18 +19,6 @@ import { requireAuth, AuthRequest } from "../auth";
 import { sanitizeBody } from "../middleware/sanitize";
 
 export const campaignRouter = Router();
-
-// Campaign creation validation schema (#282)
-const CreateCampaignSchema = z.object({
-  name: z.string().min(1, "name is required").max(100, "name must be ≤ 100 characters"),
-  reward_amount: z.number().int().positive("reward_amount must be a positive integer"),
-  expires_at: z
-    .string()
-    .datetime({ message: "expires_at must be a valid ISO 8601 timestamp" })
-    .refine((val) => new Date(val) > new Date(), { message: "expires_at must be a future date" }),
-  merchant: z.string().optional(),
-  description: z.string().optional(),
-});
 
 // Route-specific validation schemas
 const CampaignQuerySchema = z.object({
