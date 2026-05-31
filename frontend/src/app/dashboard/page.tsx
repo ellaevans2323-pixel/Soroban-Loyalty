@@ -61,8 +61,8 @@ export default function DashboardPage() {
     setRewardError(null);
     try {
       const r = await api.getUserRewards(publicKey);
-      setRewards(r.rewards);
-      const claimedIds = r.rewards.filter((rw) => !rw.redeemed).map((rw) => rw.campaign_id);
+      setRewards(r.data);
+      const claimedIds = r.data.filter((rw) => !rw.redeemed).map((rw) => rw.campaign_id);
       setOptimisticClaimed(new Set(claimedIds));
     } catch (err) {
       setRewardError(err instanceof Error ? err.message : "Failed to load rewards");
@@ -107,7 +107,7 @@ export default function DashboardPage() {
       setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
       toast("Reward claimed successfully!", "success");
       const r = await api.getUserRewards(publicKey);
-      setRewards(r.rewards);
+      setRewards(r.data);
       await refreshBalance();
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : t("messages.claimFailed"), "error");
@@ -130,7 +130,7 @@ export default function DashboardPage() {
       await redeemReward(publicKey, BigInt(amount));
       toast("Reward redeemed successfully!", "success");
       const r = await api.getUserRewards(publicKey);
-      setRewards(r.rewards);
+      setRewards(r.data);
       await refreshBalance();
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : t("messages.redeemFailed"), "error");

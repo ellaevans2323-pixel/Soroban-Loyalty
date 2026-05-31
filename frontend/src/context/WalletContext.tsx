@@ -50,7 +50,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     setBalanceLoading(true);
     try {
-      const { rewards } = await api.getUserRewards(publicKey);
+      const { data: rewards } = await api.getUserRewards(publicKey);
       const availableBalance = rewards.reduce((sum, reward) => {
         const remaining = reward.redeemed ? reward.amount - reward.redeemed_amount : reward.amount;
         return sum + Math.max(remaining, 0);

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { createRewardClaim, DuplicateClaimError, getRewardsByUser } from "../services/reward.service";
+import { createRewardClaim, DuplicateClaimError, getRewardsByUser, getRewardsByUserPaginated } from "../services/reward.service";
 import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
@@ -51,12 +51,19 @@ const ClaimSchema = z.object({
  */
 rewardRouter.get("/user/:address/rewards", rewardsLimiter, validateParams(StellarAddressParamSchema), asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
-  try {
-    const rewards = await getRewardsByUser(address);
-    res.json({ rewards });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch rewards" });
+
+  const limitRaw = req.query.limit !== undefined ? Number(req.query.limit) : 20;
+  const offsetRaw = req.query.offset !== undefined ? Number(req.query.offset) : 0;
+
+  if (!Number.isInteger(limitRaw) || limitRaw < 1 || limitRaw > 100) {
+    throw new BadRequestError("limit must be an integer between 1 and 100");
   }
+  if (!Number.isInteger(offsetRaw) || offsetRaw < 0) {
+    throw new BadRequestError("offset must be a non-negative integer");
+  }
+
+  const result = await getRewardsByUserPaginated(address, limitRaw, offsetRaw);
+  res.json(result);
 }));
 
 /**
