@@ -24,14 +24,15 @@ export default function DashboardPage() {
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignError, setCampaignError] = useState<string | null>(null);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [rewardError, setRewardError] = useState<string | null>(null);
-  const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const networkDisabled = health.status === "unreachable";
@@ -95,36 +96,23 @@ export default function DashboardPage() {
   const handleClaim = async (campaignId: number) => {
     if (!publicKey) {
       toast("Please connect your wallet first", "error");
-      return;
+      throw new Error("Wallet not connected");
     }
     if (networkDisabled) {
       toast("Network is unreachable. Please try again later.", "error");
-      return;
+      throw new Error("Network unreachable");
     }
-    setClaimingId(campaignId);
     try {
-      const result = await claimReward(publicKey, campaignId);
-      setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
-      
-      const explorerUrl = process.env.NEXT_PUBLIC_EXPLORER_URL || "https://stellar.expert/explorer/testnet";
-      const toastMessage = result.txHash ? (
-        <span>
-          Reward claimed successfully!{" "}
-          <a href={`${explorerUrl}/tx/${result.txHash}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>
-            View on Explorer
-          </a>
-        </span>
-      ) : "Reward claimed successfully!";
-      
-      toast(toastMessage, "success");
-      const r = await api.getUserRewards(publicKey);
-      setRewards(r.rewards);
-      await refreshBalance();
+      await claimReward(publicKey, campaignId);
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : t("messages.claimFailed"), "error");
-    } finally {
-      setClaimingId(null);
+      throw err;
     }
+    setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
+    toast("Reward claimed successfully!", "success");
+    const r = await api.getUserRewards(publicKey);
+    setRewards(r.rewards);
+    await refreshBalance();
   };
 
   const handleRedeem = async (rewardId: string, amount: number) => {
@@ -136,17 +124,29 @@ export default function DashboardPage() {
       toast("Network is unreachable. Please try again later.", "error");
       return;
     }
-    setRedeemingId(rewardId);
+
+    setRedeemStatus((prev) => ({ ...prev, [rewardId]: "loading" }));
+    setRedeemMessage((prev) => ({ ...prev, [rewardId]: "" }));
+
     try {
       await redeemReward(publicKey, BigInt(amount));
-      toast("Reward redeemed successfully!", "success");
+      const successMessage = t("messages.redeemSuccess", { amount: amount.toString() });
+      setRedeemStatus((prev) => ({ ...prev, [rewardId]: "success" }));
+      setRedeemMessage((prev) => ({ ...prev, [rewardId]: successMessage }));
+      toast(successMessage, "success");
       const r = await api.getUserRewards(publicKey);
       setRewards(r.rewards);
       await refreshBalance();
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : t("messages.redeemFailed"), "error");
+      const errorMessage = err instanceof Error ? err.message : t("messages.redeemFailed");
+      setRedeemStatus((prev) => ({ ...prev, [rewardId]: "error" }));
+      setRedeemMessage((prev) => ({ ...prev, [rewardId]: errorMessage }));
+      toast(errorMessage, "error");
     } finally {
-      setRedeemingId(null);
+      window.setTimeout(() => {
+        setRedeemStatus((prev) => ({ ...prev, [rewardId]: "idle" }));
+        setRedeemMessage((prev) => ({ ...prev, [rewardId]: "" }));
+      }, 3000);
     }
   };
 
@@ -184,7 +184,6 @@ export default function DashboardPage() {
                 key={campaign.id}
                 campaign={campaign}
                 isClaimed={optimisticClaimed.has(campaign.id)}
-                isClaiming={claimingId === campaign.id}
                 onClaim={() => handleClaim(campaign.id)}
                 disabled={networkDisabled}
               />
@@ -203,7 +202,8 @@ export default function DashboardPage() {
         <RewardList
           rewards={rewards}
           onRedeem={networkDisabled ? undefined : handleRedeem}
-          redeeming={redeemingId}
+          redeemStatus={redeemStatus}
+          redeemMessage={redeemMessage}
           error={rewardError}
           onRetry={loadRewards}
         />
