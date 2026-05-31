@@ -27,11 +27,13 @@ export default function DashboardPage() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [rewardError, setRewardError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<number | null>(null);
-  const [redeemingId, setRedeemingId] = useState<string | null>(null);
+  const [redeemStatus, setRedeemStatus] = useState<Record<string, 'idle' | 'loading' | 'success' | 'error'>>({});
+  const [redeemMessage, setRedeemMessage] = useState<Record<string, string>>({});
   const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const networkDisabled = health.status === "unreachable";
@@ -125,17 +127,29 @@ export default function DashboardPage() {
       toast("Network is unreachable. Please try again later.", "error");
       return;
     }
-    setRedeemingId(rewardId);
+
+    setRedeemStatus((prev) => ({ ...prev, [rewardId]: "loading" }));
+    setRedeemMessage((prev) => ({ ...prev, [rewardId]: "" }));
+
     try {
       await redeemReward(publicKey, BigInt(amount));
-      toast("Reward redeemed successfully!", "success");
+      const successMessage = t("messages.redeemSuccess", { amount: amount.toString() });
+      setRedeemStatus((prev) => ({ ...prev, [rewardId]: "success" }));
+      setRedeemMessage((prev) => ({ ...prev, [rewardId]: successMessage }));
+      toast(successMessage, "success");
       const r = await api.getUserRewards(publicKey);
       setRewards(r.rewards);
       await refreshBalance();
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : t("messages.redeemFailed"), "error");
+      const errorMessage = err instanceof Error ? err.message : t("messages.redeemFailed");
+      setRedeemStatus((prev) => ({ ...prev, [rewardId]: "error" }));
+      setRedeemMessage((prev) => ({ ...prev, [rewardId]: errorMessage }));
+      toast(errorMessage, "error");
     } finally {
-      setRedeemingId(null);
+      window.setTimeout(() => {
+        setRedeemStatus((prev) => ({ ...prev, [rewardId]: "idle" }));
+        setRedeemMessage((prev) => ({ ...prev, [rewardId]: "" }));
+      }, 3000);
     }
   };
 
@@ -192,7 +206,8 @@ export default function DashboardPage() {
         <RewardList
           rewards={rewards}
           onRedeem={networkDisabled ? undefined : handleRedeem}
-          redeeming={redeemingId}
+          redeemStatus={redeemStatus}
+          redeemMessage={redeemMessage}
           error={rewardError}
           onRetry={loadRewards}
         />

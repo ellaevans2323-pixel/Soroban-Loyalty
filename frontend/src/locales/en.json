@@ -46,7 +46,8 @@
     "redeemed": "Redeemed {amount} LYT",
     "actions": {
       "redeem": "Redeem",
-      "redeeming": "Redeeming..."
+      "redeeming": "Redeeming...",
+      "redeemed": "Redeemed!"
     }
   },
   "network": {
