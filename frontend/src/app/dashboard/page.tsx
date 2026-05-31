@@ -25,9 +25,9 @@ export default function DashboardPage() {
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignError, setCampaignError] = useState<string | null>(null);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [rewardError, setRewardError] = useState<string | null>(null);
-  const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
   const [offset, setOffset] = useState(0);
@@ -99,25 +99,23 @@ export default function DashboardPage() {
   const handleClaim = async (campaignId: number) => {
     if (!publicKey) {
       toast("Please connect your wallet first", "error");
-      return;
+      throw new Error("Wallet not connected");
     }
     if (networkDisabled) {
       toast("Network is unreachable. Please try again later.", "error");
-      return;
+      throw new Error("Network unreachable");
     }
-    setClaimingId(campaignId);
     try {
       await claimReward(publicKey, campaignId);
-      setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
-      toast("Reward claimed successfully!", "success");
-      const r = await api.getUserRewards(publicKey);
-      setRewards(r.rewards);
-      await refreshBalance();
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : t("messages.claimFailed"), "error");
-    } finally {
-      setClaimingId(null);
+      throw err;
     }
+    setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
+    toast("Reward claimed successfully!", "success");
+    const r = await api.getUserRewards(publicKey);
+    setRewards(r.rewards);
+    await refreshBalance();
   };
 
   const handleRedeem = async (rewardId: string, amount: number) => {
@@ -167,7 +165,6 @@ export default function DashboardPage() {
                 key={campaign.id}
                 campaign={campaign}
                 isClaimed={optimisticClaimed.has(campaign.id)}
-                isClaiming={claimingId === campaign.id}
                 onClaim={() => handleClaim(campaign.id)}
                 disabled={networkDisabled}
               />

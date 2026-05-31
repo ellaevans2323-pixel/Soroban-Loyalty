@@ -13,10 +13,9 @@ export function errorHandler(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ) {
-  // Always log the full error including stack
   logger.error(err.message, err instanceof Error ? err : undefined, {
-    path: req.path,
     method: req.method,
+    path: req.path,
   });
 
   const isDev = process.env.NODE_ENV === 'development';
