@@ -51,15 +51,17 @@ const ClaimSchema = z.object({
  */
 rewardRouter.get("/user/:address/rewards", rewardsLimiter, validateParams(StellarAddressParamSchema), asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
+  const limitRaw = req.query.limit as string | undefined;
+  const offsetRaw = req.query.offset as string | undefined;
 
-  const limitRaw = req.query.limit !== undefined ? Number(req.query.limit) : 20;
-  const offsetRaw = req.query.offset !== undefined ? Number(req.query.offset) : 0;
+  const limit = limitRaw !== undefined ? parseInt(limitRaw, 10) : undefined;
+  const offset = offsetRaw !== undefined ? parseInt(offsetRaw, 10) : 0;
 
-  if (!Number.isInteger(limitRaw) || limitRaw < 1 || limitRaw > 100) {
-    throw new BadRequestError("limit must be an integer between 1 and 100");
-  }
-  if (!Number.isInteger(offsetRaw) || offsetRaw < 0) {
-    throw new BadRequestError("offset must be a non-negative integer");
+  try {
+    const rewards = await getRewardsByUser(address, limit, offset);
+    res.json({ rewards });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch rewards" });
   }
 
   const result = await getRewardsByUserPaginated(address, limitRaw, offsetRaw);

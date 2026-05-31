@@ -45,6 +45,24 @@ const REWARDS_WITH_CAMPAIGN_SQL = `
   ORDER BY r.claimed_at DESC
 `;
 
+const REWARDS_PAGINATED_SQL = `
+  SELECT
+    r.id,
+    r.user_address,
+    r.campaign_id,
+    r.amount,
+    r.redeemed,
+    r.redeemed_amount,
+    r.claimed_at,
+    r.redeemed_at,
+    c.reward_amount AS campaign_reward
+  FROM rewards r
+  JOIN campaigns c ON c.id = r.campaign_id
+  WHERE r.user_address = $1
+  ORDER BY r.claimed_at DESC
+  LIMIT $2 OFFSET $3
+`;
+
 /**
  * Inserts a new reward or updates an existing one for a specific user and campaign.
  * Also ensures the user exists in the users table.
@@ -102,13 +120,19 @@ export async function createRewardClaim(r: Omit<Reward, "id" | "claimed_at">): P
 }
 
 /**
- * Retrieves all rewards associated with a specific user address.
- * 
+ * Retrieves rewards associated with a specific user address, with optional pagination.
+ *
  * @param address - The Stellar public key of the user.
+ * @param limit - Maximum number of rewards to return (omit for all).
+ * @param offset - Number of rewards to skip (default 0).
  * @returns A promise that resolves to an array of Reward objects.
  * @throws Will throw an error if the database query fails.
  */
-export async function getRewardsByUser(address: string): Promise<Reward[]> {
+export async function getRewardsByUser(address: string, limit?: number, offset = 0): Promise<Reward[]> {
+  if (limit !== undefined) {
+    const { rows } = await pool.query<Reward>(REWARDS_PAGINATED_SQL, [address, limit, offset]);
+    return rows;
+  }
   const { rows } = await pool.query<Reward>(REWARDS_WITH_CAMPAIGN_SQL, [address]);
   return rows;
 }
