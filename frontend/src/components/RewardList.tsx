@@ -78,7 +78,7 @@ export function RewardList({ rewards, onRedeem, redeemStatus = {}, redeemMessage
         illustration="rewards"
         title={t('rewards.noRewards')}
         description="Complete a campaign to earn LYT tokens."
-        cta={{ label: "Claim your first reward", href: "/dashboard" }}
+        cta={{ label: "Claim your first reward", href: "/campaigns" }}
       />
     );
   }

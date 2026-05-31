@@ -50,19 +50,8 @@ export function createApp() {
   });
 
   app.get("/health", async (_req, res) => {
-    const HEALTH_CHECK_TIMEOUT_MS = 400; // per-check cap; keeps total response < 500 ms
+    const HEALTH_CHECK_TIMEOUT_MS = 400;
 
-    const checks: {
-      stellar: { reachable: boolean; latency: number };
-      database: { connected: boolean; responseTime: number };
-      indexer: { running: boolean };
-    } = {
-      stellar: { reachable: false, latency: 0 },
-      database: { connected: false, responseTime: 0 },
-      indexer: { running: process.env.ENABLE_INDEXER !== "false" },
-    };
-
-    /** Race a promise against a timeout so a slow dependency cannot block the response. */
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
       Promise.race([
         promise,
@@ -71,46 +60,26 @@ export function createApp() {
         ),
       ]);
 
-    // Run dependency checks in parallel for speed
-    const stellarCheck = (async () => {
-      try {
-        const start = Date.now();
-        await withTimeout(rpcServer.getHealth(), HEALTH_CHECK_TIMEOUT_MS);
-        checks.stellar.reachable = true;
-        checks.stellar.latency = Date.now() - start;
-      } catch {
-        checks.stellar.reachable = false;
-      }
-    })();
+    let db: "ok" | "error" = "error";
+    let rpc: "ok" | "error" = "error";
 
-    const dbCheck = (async () => {
-      try {
-        const start = Date.now();
-        await withTimeout(pool.query("SELECT 1"), HEALTH_CHECK_TIMEOUT_MS);
-        checks.database.connected = true;
-        checks.database.responseTime = Date.now() - start;
-      } catch {
-        checks.database.connected = false;
-      }
-    })();
+    await Promise.all([
+      (async () => {
+        try {
+          await withTimeout(pool.query("SELECT 1"), HEALTH_CHECK_TIMEOUT_MS);
+          db = "ok";
+        } catch { /* db stays error */ }
+      })(),
+      (async () => {
+        try {
+          await withTimeout(rpcServer.getHealth(), HEALTH_CHECK_TIMEOUT_MS);
+          rpc = "ok";
+        } catch { /* rpc stays error */ }
+      })(),
+    ]);
 
-    await Promise.all([stellarCheck, dbCheck]);
-
-    const allHealthy = checks.stellar.reachable && checks.database.connected;
-    const status = allHealthy
-      ? "healthy"
-      : checks.stellar.reachable || checks.database.connected
-        ? "degraded"
-        : "unhealthy";
-
-    const httpStatus = allHealthy ? 200 : 503;
-
-    res.status(httpStatus).json({
-      status,
-      checks,
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-    });
+    const allHealthy = db === "ok" && rpc === "ok";
+    res.status(allHealthy ? 200 : 503).json({ status: allHealthy ? "ok" : "error", db, rpc });
   });
 
   app.use("/campaigns", campaignRouter);
