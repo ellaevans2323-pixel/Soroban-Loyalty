@@ -1,393 +1,138 @@
-# Contributing to Soroban Loyalty
+# Contributing to Soroban-Loyalty
 
-Thank you for your interest in contributing to Soroban Loyalty! We welcome contributions from developers of all skill levels.
+Thank you for your interest in contributing to Soroban-Loyalty! This document provides guidelines and instructions for setting up your development environment and submitting contributions.
 
----
-
-## 🚀 New Contributors
-
-**First time contributing?** Start here:
-
-👉 **[Onboarding Guide](docs/onboarding.md)** - Complete step-by-step guide for new contributors
-
-The onboarding guide covers:
-- Setting up your development environment
-- Finding your first issue
-- Making changes and testing
-- Submitting your first pull request
-- Getting help when you need it
+## Table of Contents
+- [Development Environment Setup](#development-environment-setup)
+- [Git Workflow](#git-workflow)
+- [Coding Standards](#coding-standards)
+- [Running Tests](#running-tests)
+- [Deploying Contracts Locally](#deploying-contracts-locally)
+- [Pull Request Process](#pull-request-process)
 
 ---
 
-## 📋 Quick Start for Experienced Contributors
-
-### 1. Fork and Clone
-
-```bash
-git clone https://github.com/YOUR-USERNAME/soroban-loyalty.git
-cd soroban-loyalty
-git remote add upstream https://github.com/your-org/soroban-loyalty.git
-```
-
-### 2. Create a Branch
-
-```bash
-git checkout -b feature/your-feature-name-issue-number
-```
-
-### 3. Make Changes
-
-Follow the code style and conventions used in the project.
-
-### 4. Test Your Changes
-
-```bash
-# Smart contracts
-cargo test
-
-# Backend
-cd backend && npm test
-
-# Frontend
-cd frontend && npm test
-```
-
-### 5. Commit and Push
-
-```bash
-git add .
-git commit -m "Your descriptive commit message
-
-Closes #issue-number"
-git push origin feature/your-feature-name-issue-number
-```
-
-### 6. Create Pull Request
-
-Open a PR on GitHub with a clear description of your changes.
-
----
-
-## 🏷️ Finding Issues to Work On
-
-We use labels to help you find issues that match your interests and skill level:
-
-- **`good first issue`** - Perfect for newcomers
-- **`documentation`** - Writing or improving docs
-- **`bug`** - Fixing broken functionality
-- **`enhancement`** - Adding new features
-- **`frontend`** - React/Next.js work
-- **`backend`** - Node.js/API work
-- **`smart-contracts`** - Rust/Soroban work
-- **`help wanted`** - We need your expertise!
-
-**Before starting work on an issue:**
-1. Check if it's already assigned
-2. Comment on the issue to claim it
-3. Wait for a maintainer to assign it to you
-
----
-
-## 💻 Development Setup
+## Development Environment Setup
 
 ### Prerequisites
+Before you begin, ensure you have the following installed:
+- **Rust**: [Install Rust](https://rustup.rs/) and add the WASM target:
+  ```bash
+  rustup target add wasm32-unknown-unknown
+  ```
+- **Stellar CLI**: [Install Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/install-stellar-cli)
+- **Node.js**: Version 20 or higher
+- **Docker & Docker Compose**: For running the local network and database
 
-- [Rust](https://rustup.rs/) + `wasm32-unknown-unknown` target
-- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/install-stellar-cli)
-- [Docker + Docker Compose](https://docs.docker.com/get-docker/)
-- [Node.js 20+](https://nodejs.org/)
-
-### Environment Setup
-
-See the [README.md](README.md#quick-start) for detailed setup instructions.
-
-**Quick start with Docker:**
-
-```bash
-cp .env.example .env
-docker-compose up --build
-```
+### Initial Setup
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Dev-Odun-oss/Soroban-Loyalty.git
+   cd Soroban-Loyalty
+   ```
+2. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   ```
+3. **Start the local environment**:
+   ```bash
+   docker-compose up --build
+   ```
+   This will start the Soroban RPC, PostgreSQL, Backend API, and Frontend.
 
 ---
 
-## 📝 Code Style Guidelines
+## Git Workflow
+
+We follow a standard fork-and-pull-request workflow.
+
+### Branch Naming
+Please use descriptive names for your branches:
+- `feat/feature-name` for new features
+- `fix/bug-name` for bug fixes
+- `docs/topic-name` for documentation changes
+- `refactor/component-name` for code refactoring
+
+### Commit Messages
+We encourage [Conventional Commits](https://www.conventionalcommits.org/):
+- `feat: add claim validation`
+- `fix: resolve token overflow in rewards`
+- `docs: update setup instructions`
+
+---
+
+## Coding Standards
 
 ### Smart Contracts (Rust)
+- **Formatting**: Run `cargo fmt --all` before committing.
+- **Linting**: Use `cargo clippy` to catch common mistakes.
+  ```bash
+  cargo clippy --all-targets --all-features -- -D warnings
+  ```
+- **Safety**: Always use `require_auth()` for sensitive operations and `checked_add/sub` for arithmetic.
 
-- Follow Rust naming conventions (snake_case for functions, PascalCase for types)
-- Run `cargo fmt` before committing
-- Run `cargo clippy` to catch common issues
-- Add tests for all new functionality
-- Document public functions with doc comments (`///`)
-
-### Backend (TypeScript)
-
-- Use TypeScript strict mode
-- Follow existing code structure and patterns
-- Add JSDoc comments for exported functions
-- Use meaningful variable and function names
-- Handle errors appropriately
-
-### Frontend (React/TypeScript)
-
-- Use functional components with hooks
-- Follow React best practices
-- Ensure responsive design (mobile, tablet, desktop)
-- Use TypeScript for type safety
-- Keep components focused and reusable
-
-### Documentation
-
-- Use clear, concise language
-- Include code examples where helpful
-- Check spelling and grammar
-- Follow Markdown best practices
-- Keep documentation up to date with code changes
+### Backend & Frontend (TypeScript)
+- **Formatting**: Use Prettier (if configured) or follow existing patterns.
+- **Linting**: Run `npm run lint` in the respective directories.
+- **Type Checking**: Run `npm run typecheck` in the backend directory.
 
 ---
 
-## 🧪 Testing Requirements
-
-All contributions should include appropriate tests:
+## Running Tests
 
 ### Smart Contracts
-
+Run tests for all contracts from the root directory:
 ```bash
-# Run all tests
 cargo test
-
-# Run specific contract tests
+```
+To test a specific contract:
+```bash
 cargo test -p soroban-loyalty-token
 ```
 
-**Required test coverage:**
-- Happy path scenarios
-- Error cases and edge cases
-- Authorization checks
-- Overflow/underflow protection
-
 ### Backend
-
+Navigate to the `backend` directory and run:
 ```bash
-cd backend
-npm test
+npm run test
 ```
-
-**Test requirements:**
-- API endpoint tests
-- Service layer tests
-- Error handling tests
-- Database interaction tests (if applicable)
 
 ### Frontend
-
+Navigate to the `frontend` directory and run:
 ```bash
-cd frontend
-npm test
-```
-
-**Test requirements:**
-- Component rendering tests
-- User interaction tests
-- Integration tests for critical flows
-
----
-
-## 📤 Pull Request Process
-
-### PR Title Format
-
-Use clear, descriptive titles:
-
-```
-Add user authentication to dashboard
-Fix responsive layout on mobile devices
-Update API documentation for campaigns endpoint
-```
-
-### PR Description Template
-
-```markdown
-## Description
-Brief description of what this PR does.
-
-## Changes
-- List of specific changes made
-- Another change
-- And another
-
-## Testing
-- How you tested these changes
-- What scenarios you covered
-
-## Screenshots (if applicable)
-Add screenshots for UI changes
-
-Closes #issue-number
-```
-
-### PR Checklist
-
-Before submitting, ensure:
-
-- [ ] Code follows project style guidelines
-- [ ] All tests pass
-- [ ] New tests added for new functionality
-- [ ] Documentation updated (if needed)
-- [ ] Commit messages are clear and descriptive
-- [ ] PR description explains the changes
-- [ ] Issue number referenced with `Closes #XXX`
-
-### Review Process
-
-1. **Automated checks** - CI/CD runs tests and linters
-2. **Code review** - Maintainers review your code
-3. **Feedback** - Address any requested changes
-4. **Approval** - Maintainer approves the PR
-5. **Merge** - Your contribution is merged! 🎉
-
-**Response time**: We aim to review PRs within 1-3 business days.
-
----
-
-## 🔄 Keeping Your Fork Updated
-
-Regularly sync your fork with the upstream repository:
-
-```bash
-# Fetch upstream changes
-git fetch upstream
-
-# Switch to main branch
-git checkout main
-
-# Merge upstream changes
-git merge upstream/main
-
-# Push to your fork
-git push origin main
+npm run test
 ```
 
 ---
 
-## 🐛 Reporting Bugs
+## Deploying Contracts Locally
 
-Found a bug? Please open an issue with:
+To test your changes on a local network, use the deployment script:
 
-1. **Clear title** - Summarize the bug
-2. **Description** - What happened vs. what you expected
-3. **Steps to reproduce** - How to trigger the bug
-4. **Environment** - OS, browser, Node version, etc.
-5. **Screenshots** - If applicable
-6. **Logs** - Any error messages or console output
-
----
-
-## 💡 Suggesting Features
-
-Have an idea for a new feature? Open an issue with:
-
-1. **Clear title** - Summarize the feature
-2. **Problem statement** - What problem does this solve?
-3. **Proposed solution** - How should it work?
-4. **Alternatives** - Other approaches you considered
-5. **Additional context** - Mockups, examples, etc.
+1. Ensure your local Docker environment is running (`docker-compose up`).
+2. Run the deployment script:
+   ```bash
+   ./scripts/deploy-contracts.sh local <YOUR_SECRET_KEY>
+   ```
+   The script will build the WASM files, deploy them to your local network, and update your `.env` file with the new contract IDs.
 
 ---
 
-## 🤝 Code of Conduct
+## Pull Request Process
 
-### Our Standards
+1. **Self-Review**: Ensure your code follows the coding standards and all tests pass locally.
+2. **Update Documentation**: If you've added or changed features, update the `README.md` or `docs/` folder accordingly.
+3. **Create PR**: Submit your pull request to the `main` branch.
+4. **CI Checks**: Ensure all GitHub Action checks (Rust CI, Backend CI, etc.) pass.
+5. **Review**: At least one maintainer must review and approve your PR before it can be merged.
 
-- **Be respectful** - Treat everyone with respect and kindness
-- **Be collaborative** - Work together to improve the project
-- **Be constructive** - Provide helpful feedback
-- **Be patient** - Remember that everyone is learning
-- **Be inclusive** - Welcome contributors from all backgrounds
-
-### Unacceptable Behavior
-
-- Harassment, discrimination, or offensive comments
-- Personal attacks or trolling
-- Spam or off-topic discussions
-- Sharing private information without permission
-
-**Violations**: Report to project maintainers. We take these issues seriously.
+### PR Template
+Your PR description should include:
+- A clear summary of the changes.
+- The issue number it addresses (if applicable).
+- Steps to verify the changes.
 
 ---
 
-## 📚 Additional Resources
+## Code of Conduct
 
-- **[Onboarding Guide](docs/onboarding.md)** - Detailed guide for new contributors
-- **[README.md](README.md)** - Project overview and setup
-- **[Stellar Documentation](https://developers.stellar.org/)** - Stellar blockchain docs
-- **[Soroban Documentation](https://soroban.stellar.org/)** - Soroban smart contracts
-- **[Next.js Documentation](https://nextjs.org/docs)** - Frontend framework
-- **[TypeScript Documentation](https://www.typescriptlang.org/docs/)** - TypeScript language
-
----
-
-## 🎯 Contribution Areas
-
-We welcome contributions in many areas:
-
-### Code
-- Smart contract development (Rust)
-- Backend API development (Node.js/TypeScript)
-- Frontend development (React/Next.js)
-- Testing and test coverage
-- Performance optimizations
-
-### Documentation
-- Code documentation and comments
-- User guides and tutorials
-- API documentation
-- Architecture diagrams
-- Translation to other languages
-
-### Design
-- UI/UX improvements
-- Accessibility enhancements
-- Mobile responsiveness
-- Design system and components
-
-### Community
-- Answering questions in issues
-- Reviewing pull requests
-- Helping new contributors
-- Writing blog posts or tutorials
-- Spreading the word about the project
-
----
-
-## 🏆 Recognition
-
-All contributors are recognized in:
-- GitHub's contributor list
-- Project commit history
-- Release notes (for significant contributions)
-
-We appreciate every contribution, no matter how small!
-
----
-
-## ❓ Questions?
-
-- **General questions**: Open a GitHub Discussion
-- **Issue-specific questions**: Comment on the issue
-- **PR questions**: Comment on the pull request
-- **Private concerns**: Contact maintainers directly
-
----
-
-## 📄 License
-
-By contributing to Soroban Loyalty, you agree that your contributions will be licensed under the same license as the project.
-
----
-
-**Thank you for contributing to Soroban Loyalty!** 🚀
-
-We're excited to have you as part of our community. Whether you're fixing a typo or adding a major feature, your contribution matters.
-
-Happy coding! 💻
+Please review and follow our [Code of Conduct](./CODE_OF_CONDUCT.md).

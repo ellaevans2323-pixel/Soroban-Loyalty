@@ -1,0 +1,158 @@
+# Production Docker Compose override.
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# What this file adds on top of docker-compose.yml:
+#   - restart: unless-stopped  — containers auto-recover from crashes (#404)
+#   - JSON logging driver       — structured logs forwarded to Loki (#398)
+#   - memory / CPU limits       — prevent runaway containers (#396)
+#   - nginx reverse proxy       — SSL termination, request routing, caching (#386)
+#
+# Log aggregation credentials (required when using Loki driver):
+#   LOKI_URL  — e.g. http://loki:3100/loki/api/v1/push
+#   Set these in your .env or as host environment variables before deploying.
+
+version: "3.9"
+
+x-logging: &default-logging
+  # JSON log driver: emits structured JSON lines compatible with the backend
+  # Winston JSON formatter and readable by Loki / Promtail / CloudWatch.
+  # Credentials are read from the LOKI_URL environment variable.
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "5"
+    # Uncomment and set LOKI_URL to forward logs to Grafana Loki instead:
+    # driver: loki
+    # options:
+    #   loki-url: "${LOKI_URL}"
+    #   loki-external-labels: "job=soroban-loyalty,env=production"
+    #   max-size: "50m"
+    #   max-file: "5"
+
+services:
+  nginx:
+    # Nginx reverse proxy for SSL termination and request routing
+    # Rationale: Sits in front of backend and frontend, handles SSL/TLS,
+    # gzip compression, rate limiting, and static asset caching.
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128m
+        reservations:
+          cpus: "0.05"
+          memory: 32m
+    volumes:
+      # Mount SSL certificates (configure in production)
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  postgres:
+    # Rationale: PostgreSQL is the most memory-intensive service; 1 GB cap
+    # prevents it from consuming all host RAM while still allowing a healthy
+    # shared_buffers allocation.
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+        reservations:
+          cpus: "0.25"
+          memory: 256m
+
+  redis:
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128m
+
+  soroban-local:
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
+
+  backend:
+    # Rationale: 512 MB cap prevents the Node.js indexer from leaking memory
+    # and starving other services. OOM kills surface in `docker inspect`
+    # State.OOMKilled. 0.5 CPU keeps latency predictable under load.
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
+        reservations:
+          cpus: "0.1"
+          memory: 128m
+
+  frontend:
+    # Rationale: Next.js SSR pages are lightweight; 256 MB is sufficient for
+    # static and server-rendered pages. 0.25 CPU prevents the renderer from
+    # monopolising the host during a traffic spike.
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256m
+        reservations:
+          cpus: "0.05"
+          memory: 64m
+
+  prometheus:
+    restart: unless-stopped
+    logging: *default-logging
+
+  alertmanager:
+    restart: unless-stopped
+    logging: *default-logging
+
+  grafana:
+    restart: unless-stopped
+    logging: *default-logging
+
+  elasticsearch:
+    restart: unless-stopped
+    logging: *default-logging
+
+  logstash:
+    restart: unless-stopped
+    logging: *default-logging
+
+  filebeat:
+    restart: unless-stopped
+    logging: *default-logging
+
+  kibana:
+    restart: unless-stopped
+    logging: *default-logging

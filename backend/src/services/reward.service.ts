@@ -9,7 +9,41 @@ export interface Reward {
   redeemed_amount: number;
   claimed_at: Date;
   redeemed_at?: Date;
+  campaign_reward?: number;
 }
+
+interface ExplainRow {
+  "QUERY PLAN": string;
+}
+
+/** Thrown when a second claim is attempted for the same user and campaign pair. */
+export class DuplicateClaimError extends Error {
+  constructor(message = "Reward already claimed for this campaign") {
+    super(message);
+    this.name = "DuplicateClaimError";
+  }
+}
+
+function isUniqueViolation(err: unknown): err is { code: string } {
+  return typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "23505";
+}
+
+const REWARDS_WITH_CAMPAIGN_SQL = `
+  SELECT
+    r.id,
+    r.user_address,
+    r.campaign_id,
+    r.amount,
+    r.redeemed,
+    r.redeemed_amount,
+    r.claimed_at,
+    r.redeemed_at,
+    c.reward_amount AS campaign_reward
+  FROM rewards r
+  JOIN campaigns c ON c.id = r.campaign_id
+  WHERE r.user_address = $1
+  ORDER BY r.claimed_at DESC
+`;
 
 /**
  * Inserts a new reward or updates an existing one for a specific user and campaign.
@@ -31,9 +65,40 @@ export async function upsertReward(r: Omit<Reward, "id" | "claimed_at">): Promis
      ON CONFLICT (user_address, campaign_id) DO UPDATE SET
        redeemed = EXCLUDED.redeemed,
        redeemed_amount = EXCLUDED.redeemed_amount,
+       -- Stamp redeemed_at only on the transition to redeemed so replays do not move the timestamp.
        redeemed_at = CASE WHEN EXCLUDED.redeemed THEN NOW() ELSE rewards.redeemed_at END`,
     [r.user_address, r.campaign_id, r.amount, r.redeemed, r.redeemed_amount]
   );
+}
+
+/**
+ * Inserts a claim exactly once per (user_address, campaign_id).
+ * Relies on the DB unique constraint for concurrency-safe deduplication.
+ *
+ * @param r - Reward claim fields (user, campaign, amount, redemption state).
+ * @returns Resolves when the claim row is inserted.
+ * @throws {DuplicateClaimError} When the user has already claimed this campaign.
+ * @throws Propagates other database errors from the insert.
+ */
+export async function createRewardClaim(r: Omit<Reward, "id" | "claimed_at">): Promise<void> {
+  await pool.query(
+    `INSERT INTO users (address) VALUES ($1) ON CONFLICT DO NOTHING`,
+    [r.user_address]
+  );
+
+  try {
+    await pool.query(
+      `INSERT INTO rewards (user_address, campaign_id, amount, redeemed, redeemed_amount)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [r.user_address, r.campaign_id, r.amount, r.redeemed, r.redeemed_amount]
+    );
+  } catch (err) {
+    // Postgres 23505 = unique_violation on (user_address, campaign_id).
+    if (isUniqueViolation(err)) {
+      throw new DuplicateClaimError();
+    }
+    throw err;
+  }
 }
 
 /**
@@ -44,15 +109,22 @@ export async function upsertReward(r: Omit<Reward, "id" | "claimed_at">): Promis
  * @throws Will throw an error if the database query fails.
  */
 export async function getRewardsByUser(address: string): Promise<Reward[]> {
-  const { rows } = await pool.query<Reward>(
-    `SELECT r.*, c.reward_amount as campaign_reward
-     FROM rewards r
-     JOIN campaigns c ON c.id = r.campaign_id
-     WHERE r.user_address = $1
-     ORDER BY r.claimed_at DESC`,
-    [address]
-  );
+  const { rows } = await pool.query<Reward>(REWARDS_WITH_CAMPAIGN_SQL, [address]);
   return rows;
+}
+
+/**
+ * Executes EXPLAIN ANALYZE against the optimized rewards-by-user query.
+ * Used to verify query plan and performance characteristics during tests/ops.
+ *
+ * @param address - Stellar public key of the user whose plan is analyzed.
+ * @returns Human-readable query plan lines from Postgres.
+ * @throws Propagates database errors from EXPLAIN ANALYZE.
+ */
+export async function explainRewardsByUserQuery(address: string): Promise<string[]> {
+  const explainSql = `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) ${REWARDS_WITH_CAMPAIGN_SQL}`;
+  const { rows } = await pool.query<ExplainRow>(explainSql, [address]);
+  return rows.map((row) => row["QUERY PLAN"]);
 }
 
 /**
