@@ -43,6 +43,7 @@
     "@typescript-eslint/parser": "^8.59.0",
     "eslint": "^10.4.0",
     "eslint-plugin-security": "^4.0.0",
+    "exit-x": "^0.2.2",
     "jest": "^30.3.0",
     "jest-circus": "^30.3.0",
     "supertest": "^7.1.1",
