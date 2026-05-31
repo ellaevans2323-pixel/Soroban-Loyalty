@@ -1,3 +1,10 @@
+# [1.49.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.48.0...v1.49.0) (2026-05-31)
+
+
+### Features
+
+* **backend:** implement indexer checkpoint persistence ([32b6041](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/32b604147d05ffad4c013df5e636739c5db84cbf)), closes [#328](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/328)
+
 # [1.48.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.47.1...v1.48.0) (2026-05-31)
 
 
