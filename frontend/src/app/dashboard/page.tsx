@@ -38,6 +38,7 @@ export default function DashboardPage() {
 
   const loadCampaigns = useCallback(
     async (nextOffset: number, replace = false) => {
+      if (replace) setLoadingCampaigns(true);
       setLoadingMore(true);
       setCampaignError(null);
       try {
@@ -49,6 +50,7 @@ export default function DashboardPage() {
         setCampaignError(err instanceof Error ? err.message : "Failed to load campaigns");
       } finally {
         setLoadingMore(false);
+        if (replace) setLoadingCampaigns(false);
       }
     },
     []
