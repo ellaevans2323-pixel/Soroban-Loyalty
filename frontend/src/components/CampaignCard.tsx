@@ -90,8 +90,10 @@ export function CampaignCard({ campaign, onClaim, isClaimed, isClaiming, disable
   const countdownLabel = countdown.expired
     ? "Expired"
     : countdown.days > 0
-    ? `${countdown.days}d ${countdown.hours}h ${countdown.minutes}m ${countdown.seconds}s left`
-    : `${countdown.hours}h ${countdown.minutes}m ${countdown.seconds}s left`;
+    ? `Expires in ${countdown.days}d ${countdown.hours}h`
+    : countdown.hours > 0
+    ? `Expires in ${countdown.hours}h ${countdown.minutes}m`
+    : `Expires in ${countdown.minutes}m`;
 
   const handleDeactivateConfirm = async () => {
     if (!onDeactivate) return;

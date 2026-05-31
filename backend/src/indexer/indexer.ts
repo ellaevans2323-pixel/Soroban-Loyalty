@@ -316,7 +316,14 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
     const valueVec  = xdr.ScVal.fromXDR(event.value, "base64").vec()!;
     const campaignId = decodeU64(valueVec[0]);
     const amount    = decodeI128(valueVec[1]);
-    await upsertReward({ user_address: user, campaign_id: campaignId, amount, redeemed: false, redeemed_amount: 0 });
+    await upsertReward({
+      user_address: user,
+      campaign_id: campaignId,
+      amount,
+      redeemed: false,
+      redeemed_amount: 0,
+      tx_hash: event.txHash,
+    });
     await recordTransaction(event.txHash, "claim", user, campaignId, amount, event.ledger);
     logger.info(`[indexer] RewardClaimed user=${user} campaign=${campaignId} amount=${amount}`);
   }

@@ -1,4 +1,5 @@
 import { pool } from "../db";
+import { logger } from "../logger";
 
 export interface Reward {
   id: string;
@@ -9,6 +10,7 @@ export interface Reward {
   redeemed_amount: number;
   claimed_at: Date;
   redeemed_at?: Date;
+  tx_hash?: string | null;
   campaign_reward?: number;
 }
 
@@ -77,6 +79,22 @@ export async function upsertReward(r: Omit<Reward, "id" | "claimed_at">): Promis
     `INSERT INTO users (address) VALUES ($1) ON CONFLICT DO NOTHING`,
     [r.user_address]
   );
+
+  if (r.tx_hash) {
+    const result = await pool.query(
+      `INSERT INTO rewards (user_address, campaign_id, amount, redeemed, redeemed_amount, tx_hash)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (tx_hash) DO NOTHING`,
+      [r.user_address, r.campaign_id, r.amount, r.redeemed, r.redeemed_amount, r.tx_hash]
+    );
+
+    if (result.rowCount === 0) {
+      logger.warn(`[reward] Duplicate reward event tx_hash=${r.tx_hash}`);
+    }
+
+    return;
+  }
+
   await pool.query(
     `INSERT INTO rewards (user_address, campaign_id, amount, redeemed, redeemed_amount)
      VALUES ($1,$2,$3,$4,$5)

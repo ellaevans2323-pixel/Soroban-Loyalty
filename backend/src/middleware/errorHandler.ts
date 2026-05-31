@@ -28,6 +28,11 @@ export function errorHandler(
     return res.status(err.statusCode).json(body);
   }
 
+  // Payload too large errors from express.json body parser
+  if ((err as any).type === 'entity.too.large' || (err as any).status === 413) {
+    return res.status(413).json({ error: 'Payload too large. Request body must be under the configured limit.' });
+  }
+
   // Zod validation errors
   if (err.name === 'ZodError') {
     const zodErr = err as any;
