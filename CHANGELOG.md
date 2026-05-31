@@ -1,3 +1,12 @@
+# [1.48.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.47.1...v1.48.0) (2026-05-31)
+
+
+### Features
+
+* add loading spinner component for async actions ([14ae40e](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/14ae40e9b666b3c264c74c3ebdd4862cf14dfad6)), closes [#350](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/350)
+* add reusable ConfirmModal component for destructive actions ([e98a178](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/e98a178ac3f8c965adfd46595b86950bc2cffb5a)), closes [#352](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/352)
+* implement toast notification system ([71df087](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/71df087eaf740b328a64f41287e116b0909adcb4)), closes [#348](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/348)
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
