@@ -138,6 +138,35 @@ export async function getRewardsByUser(address: string, limit?: number, offset =
 }
 
 /**
+ * Retrieves a paginated list of rewards for a user with total count.
+ *
+ * @param address - The Stellar public key of the user.
+ * @param limit - Maximum number of rows to return (default 20, max 100).
+ * @param offset - Number of rows to skip (default 0).
+ * @returns Paginated rewards and total count.
+ */
+export async function getRewardsByUserPaginated(
+  address: string,
+  limit: number,
+  offset: number
+): Promise<{ data: Reward[]; total: number; limit: number; offset: number }> {
+  const { rows } = await pool.query<Reward>(
+    `${REWARDS_WITH_CAMPAIGN_SQL} LIMIT $2 OFFSET $3`,
+    [address, limit, offset]
+  );
+  const { rows: countRows } = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) FROM rewards WHERE user_address = $1`,
+    [address]
+  );
+  return {
+    data: rows,
+    total: parseInt(countRows[0].count, 10),
+    limit,
+    offset,
+  };
+}
+
+/**
  * Executes EXPLAIN ANALYZE against the optimized rewards-by-user query.
  * Used to verify query plan and performance characteristics during tests/ops.
  *

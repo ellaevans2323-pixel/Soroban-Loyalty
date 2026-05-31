@@ -281,6 +281,35 @@ campaignRouter.patch("/reorder", validateBody(ReorderSchema), asyncHandler(async
 }));
 
 /**
+ * PATCH /campaigns/:id
+ * Deactivates a campaign. Requires auth; restricted to campaign owner.
+ * Invalidates the campaign list cache in Redis on success.
+ */
+campaignRouter.patch("/:id", requireAuth, asyncHandler(async (req: Request, res: Response) => {
+  if (req.body?.is_active !== false) {
+    throw new BadRequestError("Body must contain { is_active: false }");
+  }
+  const id = parseStrictInteger(String(req.params.id));
+  if (id === null) throw new BadRequestError("Invalid id");
+
+  const actorAddress = (req as AuthRequest).merchantPublicKey;
+  const result = await deactivateCampaign(id, actorAddress);
+
+  if (result === null) throw new NotFoundError("Campaign");
+  if (result === "forbidden") return res.status(403).json({ error: "Forbidden: not the campaign owner" });
+
+  // Invalidate all campaign list cache keys
+  try {
+    const keys = await redisClient.keys("campaigns:list:*");
+    if (keys.length > 0) await redisClient.del(...keys);
+  } catch (err) {
+    logger.error("Redis cache invalidation error", err as Error);
+  }
+
+  res.json({ campaign: result });
+}));
+
+/**
  * DELETE /campaigns/:id
  * Soft-deletes a campaign by setting deleted_at.
  */

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { createRewardClaim, DuplicateClaimError, getRewardsByUser } from "../services/reward.service";
+import { createRewardClaim, DuplicateClaimError, getRewardsByUser, getRewardsByUserPaginated } from "../services/reward.service";
 import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
@@ -63,6 +63,9 @@ rewardRouter.get("/user/:address/rewards", rewardsLimiter, validateParams(Stella
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch rewards" });
   }
+
+  const result = await getRewardsByUserPaginated(address, limitRaw, offsetRaw);
+  res.json(result);
 }));
 
 /**

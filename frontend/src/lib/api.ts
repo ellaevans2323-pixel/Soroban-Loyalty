@@ -56,8 +56,10 @@ export const api = {
   getCampaigns: (limit = 20, offset = 0) =>
     apiFetch<{ campaigns: Campaign[]; total: number }>(`/campaigns?limit=${limit}&offset=${offset}`),
   getCampaign: (id: number) => apiFetch<{ campaign: Campaign }>(`/campaigns/${id}`),
-  getUserRewards: (address: string) =>
-    apiFetch<{ rewards: Reward[] }>(`/user/${address}/rewards`),
+  getUserRewards: (address: string, limit = 20, offset = 0) =>
+    apiFetch<{ data: Reward[]; total: number; limit: number; offset: number }>(
+      `/user/${address}/rewards?limit=${limit}&offset=${offset}`
+    ),
   getUserTransactions: (address: string, limit = 20, offset = 0) =>
     apiFetch<{ transactions: TransactionRecord[]; total: number }>(`/user/${address}/transactions?limit=${limit}&offset=${offset}`),
   getAnalytics: (days: number) =>
