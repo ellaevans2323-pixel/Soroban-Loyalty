@@ -103,9 +103,20 @@ export default function DashboardPage() {
     }
     setClaimingId(campaignId);
     try {
-      await claimReward(publicKey, campaignId);
+      const result = await claimReward(publicKey, campaignId);
       setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
-      toast("Reward claimed successfully!", "success");
+      
+      const explorerUrl = process.env.NEXT_PUBLIC_EXPLORER_URL || "https://stellar.expert/explorer/testnet";
+      const toastMessage = result.txHash ? (
+        <span>
+          Reward claimed successfully!{" "}
+          <a href={`${explorerUrl}/tx/${result.txHash}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>
+            View on Explorer
+          </a>
+        </span>
+      ) : "Reward claimed successfully!";
+      
+      toast(toastMessage, "success");
       const r = await api.getUserRewards(publicKey);
       setRewards(r.rewards);
       await refreshBalance();

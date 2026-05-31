@@ -26,7 +26,7 @@ async function invokeContract(
   contractId: string,
   method: string,
   args: xdr.ScVal[]
-): Promise<SorobanRpc.Api.GetSuccessfulTransactionResponse> {
+): Promise<SorobanRpc.Api.GetSuccessfulTransactionResponse & { txHash: string }> {
   const account = await server.getAccount(publicKey);
   const contract = new Contract(contractId);
 
@@ -70,7 +70,7 @@ async function invokeContract(
     throw new Error(`Transaction failed: ${getResult.status}`);
   }
 
-  return getResult as SorobanRpc.Api.GetSuccessfulTransactionResponse;
+  return { ...getResult, txHash: submitResult.hash } as SorobanRpc.Api.GetSuccessfulTransactionResponse & { txHash: string };
 }
 
 export async function claimReward(publicKey: string, campaignId: number) {
