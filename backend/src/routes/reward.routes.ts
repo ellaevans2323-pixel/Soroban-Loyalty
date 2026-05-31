@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { createRewardClaim, DuplicateClaimError, getRewardsByUser } from "../services/reward.service";
+import { createRewardClaim, DuplicateClaimError, getRewardsByUser, getRewardsByUserPaginated } from "../services/reward.service";
 import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
@@ -51,12 +51,21 @@ const ClaimSchema = z.object({
  */
 rewardRouter.get("/user/:address/rewards", rewardsLimiter, validateParams(StellarAddressParamSchema), asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
+  const limitRaw = req.query.limit as string | undefined;
+  const offsetRaw = req.query.offset as string | undefined;
+
+  const limit = limitRaw !== undefined ? parseInt(limitRaw, 10) : undefined;
+  const offset = offsetRaw !== undefined ? parseInt(offsetRaw, 10) : 0;
+
   try {
-    const rewards = await getRewardsByUser(address);
+    const rewards = await getRewardsByUser(address, limit, offset);
     res.json({ rewards });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch rewards" });
   }
+
+  const result = await getRewardsByUserPaginated(address, limitRaw, offsetRaw);
+  res.json(result);
 }));
 
 /**

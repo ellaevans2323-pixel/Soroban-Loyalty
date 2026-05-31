@@ -1,111 +1,149 @@
-/* eslint-disable camelcase */
 "use strict";
 
 /** @param {import('node-pg-migrate').MigrationBuilder} pgm */
 exports.up = (pgm) => {
-  pgm.createExtension("uuid-ossp", { ifNotExists: true });
+  pgm.sql(`
+-- SorobanLoyalty PostgreSQL Schema
+-- This schema defines the core data model for the loyalty platform:
+-- - Users: Stellar wallet addresses participating in the platform
+-- - Campaigns: Merchant-created reward campaigns with expiration and claim limits
+-- - Rewards: User claims of campaigns, tracking earned and redeemed LYT tokens
+-- - Transactions: Audit log of all on-chain and off-chain transactions
 
-  pgm.createTable("users", {
-    address: { type: "varchar(56)", primaryKey: true },
-    created_at: {
-      type: "timestamptz",
-      notNull: true,
-      default: pgm.func("NOW()"),
-    },
-  });
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-  pgm.createTable("campaigns", {
-    id: { type: "bigint", primaryKey: true },
-    merchant: { type: "varchar(56)", notNull: true },
-    reward_amount: { type: "bigint", notNull: true },
-    expiration: { type: "bigint", notNull: true },
-    active: { type: "boolean", notNull: true, default: true },
-    total_claimed: { type: "bigint", notNull: true, default: 0 },
-    display_order: { type: "int", notNull: true, default: 0 },
-    tx_hash: { type: "varchar(64)" },
-    created_at: {
-      type: "timestamptz",
-      notNull: true,
-      default: pgm.func("NOW()"),
-    },
-    updated_at: {
-      type: "timestamptz",
-      notNull: true,
-      default: pgm.func("NOW()"),
-    },
-  });
+-- ── Users Table ──────────────────────────────────────────────────────────────
+-- Stores Stellar wallet addresses that have interacted with the platform.
+-- Minimal data: only address and creation timestamp for privacy.
+CREATE TABLE IF NOT EXISTS users (
+    -- Stellar public key (56 chars, base32 encoded)
+    address         VARCHAR(56) PRIMARY KEY,
+    -- Timestamp when user first interacted with the platform
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-  pgm.createTable("rewards", {
-    id: {
-      type: "uuid",
-      primaryKey: true,
-      default: pgm.func("uuid_generate_v4()"),
-    },
-    user_address: {
-      type: "varchar(56)",
-      notNull: true,
-      references: '"users"',
-      onDelete: "CASCADE",
-    },
-    campaign_id: {
-      type: "bigint",
-      notNull: true,
-      references: '"campaigns"',
-      onDelete: "CASCADE",
-    },
-    amount: { type: "bigint", notNull: true },
-    redeemed: { type: "boolean", notNull: true, default: false },
-    redeemed_amount: { type: "bigint", notNull: true, default: 0 },
-    claimed_at: {
-      type: "timestamptz",
-      notNull: true,
-      default: pgm.func("NOW()"),
-    },
-    redeemed_at: { type: "timestamptz" },
-  });
+-- ── Campaigns Table ──────────────────────────────────────────────────────────
+-- Merchant-created reward campaigns. Each campaign offers a fixed LYT reward
+-- to users who claim it before expiration.
+CREATE TABLE IF NOT EXISTS campaigns (
+    -- Unique campaign ID (assigned by smart contract)
+    id              BIGINT PRIMARY KEY,
+    -- Merchant's Stellar address (campaign creator)
+    merchant        VARCHAR(56) NOT NULL,
+    -- Campaign display name
+    name            VARCHAR(255),
+    -- LYT tokens awarded per claim (in stroops, 1 LYT = 10^7 stroops)
+    reward_amount   BIGINT NOT NULL,
+    -- Unix timestamp when campaign expires and can no longer be claimed
+    expiration      BIGINT NOT NULL,
+    -- Whether campaign is currently accepting claims (soft delete via deactivation)
+    active          BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Total number of times this campaign has been claimed
+    total_claimed   BIGINT NOT NULL DEFAULT 0,
+    -- Display order in UI (for sorting campaigns)
+    display_order   INT NOT NULL DEFAULT 0,
+    -- Soroban transaction hash when campaign was created on-chain
+    tx_hash         VARCHAR(64),
+    -- URL to campaign image/banner
+    image_url       TEXT,
+    -- Timestamp when campaign was created in database
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Timestamp of last update (name, image, etc.)
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Soft delete timestamp (NULL = not deleted)
+    deleted_at      TIMESTAMPTZ
+);
 
-  pgm.addConstraint("rewards", "rewards_user_campaign_unique", {
-    unique: ["user_address", "campaign_id"],
-  });
+-- ── Rewards Table ────────────────────────────────────────────────────────────
+-- Tracks user claims of campaigns. Each row represents one user claiming one campaign.
+-- Enforces one claim per user per campaign via UNIQUE constraint.
+CREATE TABLE IF NOT EXISTS rewards (
+    -- Unique reward record ID
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    -- User's Stellar address (who claimed the reward)
+    user_address    VARCHAR(56) NOT NULL REFERENCES users(address) ON DELETE CASCADE,
+    -- Campaign ID that was claimed
+    campaign_id     BIGINT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    -- LYT tokens awarded (copied from campaign.reward_amount at claim time)
+    amount          BIGINT NOT NULL,
+    -- Whether this reward has been fully redeemed (burned)
+    redeemed        BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Amount of LYT actually redeemed/burned (may be partial)
+    redeemed_amount BIGINT NOT NULL DEFAULT 0,
+    -- Timestamp when user claimed this campaign
+    claimed_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Timestamp when reward was fully redeemed (NULL if not redeemed)
+    redeemed_at     TIMESTAMPTZ,
+    -- Enforce one claim per user per campaign
+    UNIQUE (user_address, campaign_id)
+);
 
-  pgm.createTable("transactions", {
-    id: {
-      type: "uuid",
-      primaryKey: true,
-      default: pgm.func("uuid_generate_v4()"),
-    },
-    tx_hash: { type: "varchar(64)", notNull: true, unique: true },
-    type: { type: "varchar(32)", notNull: true },
-    user_address: { type: "varchar(56)" },
-    campaign_id: { type: "bigint" },
-    amount: { type: "bigint" },
-    ledger: { type: "bigint" },
-    created_at: {
-      type: "timestamptz",
-      notNull: true,
-      default: pgm.func("NOW()"),
-    },
-  });
+-- ── Transactions Table ───────────────────────────────────────────────────────
+-- Audit log of all on-chain and off-chain transactions for compliance and debugging.
+-- Tracks claim, redeem, and transfer operations.
+CREATE TABLE IF NOT EXISTS transactions (
+    -- Unique transaction record ID
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    -- Soroban transaction hash (unique identifier on-chain)
+    tx_hash         VARCHAR(64) NOT NULL UNIQUE,
+    -- Transaction type: 'claim' (user claims campaign), 'redeem' (user burns LYT), 'transfer' (user sends LYT)
+    type            VARCHAR(32) NOT NULL,
+    -- User's Stellar address (NULL for system transactions)
+    user_address    VARCHAR(56),
+    -- Campaign ID (NULL for redeem/transfer transactions)
+    campaign_id     BIGINT,
+    -- Amount of LYT involved (stroops)
+    amount          BIGINT,
+    -- Soroban ledger sequence number when transaction was finalized
+    ledger          BIGINT,
+    -- Timestamp when transaction was recorded
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-  pgm.createIndex("rewards", "user_address", { name: "idx_rewards_user" });
-  pgm.createIndex("rewards", "campaign_id", { name: "idx_rewards_campaign" });
-  pgm.createIndex("transactions", "user_address", {
-    name: "idx_transactions_user",
-  });
-  pgm.createIndex("campaigns", "merchant", { name: "idx_campaigns_merchant" });
+-- ── Indexes ──────────────────────────────────────────────────────────────────
+-- Performance indexes for common query patterns
+
+-- Rewards queries by user (dashboard, user profile)
+CREATE INDEX IF NOT EXISTS idx_rewards_user ON rewards(user_address);
+
+-- Rewards queries by user with time ordering (recent claims first)
+CREATE INDEX IF NOT EXISTS idx_rewards_user_claimed_at ON rewards(user_address, claimed_at DESC);
+
+-- Rewards queries by campaign (campaign detail page, analytics)
+CREATE INDEX IF NOT EXISTS idx_rewards_campaign ON rewards(campaign_id);
+
+-- Transaction queries by user (transaction history)
+CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_address);
+
+-- Campaign queries by merchant (merchant dashboard)
+CREATE INDEX IF NOT EXISTS idx_campaigns_merchant ON campaigns(merchant);
+
+-- Campaign search by name
+CREATE INDEX IF NOT EXISTS idx_campaigns_name ON campaigns(name);
+
+-- Campaign filtering by active status (homepage, listings)
+CREATE INDEX IF NOT EXISTS idx_campaigns_active ON campaigns(active);
+
+-- Campaign filtering by expiration (find expired campaigns, upcoming expirations)
+CREATE INDEX IF NOT EXISTS idx_campaigns_expiration ON campaigns(expiration);
+  `);
 };
 
 /** @param {import('node-pg-migrate').MigrationBuilder} pgm */
 exports.down = (pgm) => {
-  pgm.dropIndex("campaigns", "merchant", { name: "idx_campaigns_merchant" });
-  pgm.dropIndex("transactions", "user_address", {
-    name: "idx_transactions_user",
-  });
-  pgm.dropIndex("rewards", "campaign_id", { name: "idx_rewards_campaign" });
-  pgm.dropIndex("rewards", "user_address", { name: "idx_rewards_user" });
+  pgm.sql(`
+    DROP INDEX IF EXISTS idx_campaigns_expiration;
+    DROP INDEX IF EXISTS idx_campaigns_active;
+    DROP INDEX IF EXISTS idx_campaigns_name;
+    DROP INDEX IF EXISTS idx_campaigns_merchant;
+    DROP INDEX IF EXISTS idx_transactions_user;
+    DROP INDEX IF EXISTS idx_rewards_campaign;
+    DROP INDEX IF EXISTS idx_rewards_user_claimed_at;
+    DROP INDEX IF EXISTS idx_rewards_user;
 
-  pgm.dropTable("transactions");
-  pgm.dropTable("rewards");
-  pgm.dropTable("campaigns");
-  pgm.dropTable("users");
+    DROP TABLE IF EXISTS transactions;
+    DROP TABLE IF EXISTS rewards;
+    DROP TABLE IF EXISTS campaigns;
+    DROP TABLE IF EXISTS users;
+  `);
 };

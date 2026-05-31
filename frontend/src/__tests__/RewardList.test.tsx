@@ -74,19 +74,43 @@ describe("RewardList Component", () => {
     });
 
     test("disables redeem button when redeeming", () => {
-      render(<RewardList rewards={[reward]} onRedeem={() => {}} redeeming={reward.id} />);
+      render(<RewardList rewards={[reward]} onRedeem={() => {}} redeemStatus={{ [reward.id]: 'loading' }} />);
       const button = screen.getByRole("button", { name: /redeeming/i });
       expect(button).toBeDisabled();
     });
 
     test("shows redeeming state text", () => {
-      render(<RewardList rewards={[reward]} onRedeem={() => {}} redeeming={reward.id} />);
+      render(<RewardList rewards={[reward]} onRedeem={() => {}} redeemStatus={{ [reward.id]: 'loading' }} />);
       expect(screen.getByText(/Redeeming/i)).toBeInTheDocument();
+    });
+
+    test("shows success state text when redeem succeeded", () => {
+      render(<RewardList rewards={[reward]} onRedeem={() => {}} redeemStatus={{ [reward.id]: 'success' }} />);
+      expect(screen.getByText(/Redeemed!/i)).toBeInTheDocument();
+    });
+
+    test("shows error message text when redeem failed", () => {
+      render(
+        <RewardList
+          rewards={[reward]}
+          onRedeem={() => {}}
+          redeemStatus={{ [reward.id]: 'error' }}
+          redeemMessage={{ [reward.id]: 'Insufficient balance' }}
+        />
+      );
+      expect(screen.getByText(/Insufficient balance/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Insufficient balance/i })).not.toBeDisabled();
     });
 
     test("does not disable button for other rewards while redeeming", () => {
       const r2 = { ...reward, id: "r2", campaign_id: 2 };
-      render(<RewardList rewards={[reward, r2]} onRedeem={() => {}} redeeming={reward.id} />);
+      render(
+        <RewardList
+          rewards={[reward, r2]}
+          onRedeem={() => {}}
+          redeemStatus={{ [reward.id]: 'loading' }}
+        />
+      );
       const buttons = screen.getAllByRole("button", { name: /redeem/i });
       expect(buttons[0]).toBeDisabled();
       expect(buttons[1]).not.toBeDisabled();

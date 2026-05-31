@@ -16,6 +16,7 @@ import {
   dbPoolWaiting,
 } from "./metrics";
 import { requestLogger } from "./logger";
+import { correlationMiddleware } from "./correlation";
 import { globalLimiter, rewardsLimiter } from "./middleware/rateLimiter";
 import { errorHandler } from "./middleware/errorHandler";
 
@@ -24,6 +25,7 @@ export function createApp() {
 
   app.use(cors());
   app.use(express.json());
+  app.use(correlationMiddleware);
   app.use(requestLogger);
   app.use(globalLimiter);
 

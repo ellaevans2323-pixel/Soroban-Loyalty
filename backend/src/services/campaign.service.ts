@@ -163,6 +163,29 @@ export async function getCampaignById(id: number): Promise<Campaign | null> {
 }
 
 /**
+ * Deactivates a campaign by setting active = false.
+ * Restricted to the campaign owner.
+ *
+ * @param id - Campaign ID to deactivate.
+ * @param actorAddress - Address of the requester (must match owner_address).
+ * @returns The updated campaign, or null if not found, or 'forbidden' if not owner.
+ */
+export async function deactivateCampaign(
+  id: number,
+  actorAddress: string
+): Promise<Campaign | null | "forbidden"> {
+  const campaign = await getCampaignById(id);
+  if (!campaign) return null;
+  if (campaign.owner_address !== actorAddress) return "forbidden";
+
+  const { rows } = await pool.query<Campaign>(
+    `UPDATE campaigns SET active = false, updated_at = NOW() WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * Soft-deletes a campaign by setting `deleted_at` and optionally records a deactivate audit entry.
  *
  * @param id - Campaign identifier to deactivate.

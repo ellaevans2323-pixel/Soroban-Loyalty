@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { useI18n } from "@/context/I18nContext";
 import { api, Campaign, Reward } from "@/lib/api";
+import { WalletGuard } from "@/components/WalletGuard";
 import { claimReward, redeemReward } from "@/lib/soroban";
 import { CampaignCard } from "@/components/CampaignCard";
 import { RewardList } from "@/components/RewardList";
@@ -24,14 +25,16 @@ export default function DashboardPage() {
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignError, setCampaignError] = useState<string | null>(null);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [rewardError, setRewardError] = useState<string | null>(null);
-  const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const networkDisabled = health.status === "unreachable";
@@ -61,8 +64,8 @@ export default function DashboardPage() {
     setRewardError(null);
     try {
       const r = await api.getUserRewards(publicKey);
-      setRewards(r.rewards);
-      const claimedIds = r.rewards.filter((rw) => !rw.redeemed).map((rw) => rw.campaign_id);
+      setRewards(r.data);
+      const claimedIds = r.data.filter((rw) => !rw.redeemed).map((rw) => rw.campaign_id);
       setOptimisticClaimed(new Set(claimedIds));
     } catch (err) {
       setRewardError(err instanceof Error ? err.message : "Failed to load rewards");
@@ -70,12 +73,14 @@ export default function DashboardPage() {
   }, [publicKey]);
 
   useEffect(() => {
+    if (!publicKey) return;
     loadCampaigns(0, true);
-  }, [loadCampaigns]);
+  }, [loadCampaigns, publicKey]);
 
   useEffect(() => {
+    if (!publicKey) return;
     loadRewards();
-  }, [loadRewards]);
+  }, [loadRewards, publicKey]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -95,25 +100,23 @@ export default function DashboardPage() {
   const handleClaim = async (campaignId: number) => {
     if (!publicKey) {
       toast("Please connect your wallet first", "error");
-      return;
+      throw new Error("Wallet not connected");
     }
     if (networkDisabled) {
       toast("Network is unreachable. Please try again later.", "error");
-      return;
+      throw new Error("Network unreachable");
     }
-    setClaimingId(campaignId);
     try {
       await claimReward(publicKey, campaignId);
-      setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
-      toast("Reward claimed successfully!", "success");
-      const r = await api.getUserRewards(publicKey);
-      setRewards(r.rewards);
-      await refreshBalance();
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : t("messages.claimFailed"), "error");
-    } finally {
-      setClaimingId(null);
+      throw err;
     }
+    setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
+    toast("Reward claimed successfully!", "success");
+    const r = await api.getUserRewards(publicKey);
+    setRewards(r.rewards);
+    await refreshBalance();
   };
 
   const handleRedeem = async (rewardId: string, amount: number) => {
@@ -125,38 +128,40 @@ export default function DashboardPage() {
       toast("Network is unreachable. Please try again later.", "error");
       return;
     }
-    setRedeemingId(rewardId);
+
+    setRedeemStatus((prev) => ({ ...prev, [rewardId]: "loading" }));
+    setRedeemMessage((prev) => ({ ...prev, [rewardId]: "" }));
+
     try {
       await redeemReward(publicKey, BigInt(amount));
-      toast("Reward redeemed successfully!", "success");
+      const successMessage = t("messages.redeemSuccess", { amount: amount.toString() });
+      setRedeemStatus((prev) => ({ ...prev, [rewardId]: "success" }));
+      setRedeemMessage((prev) => ({ ...prev, [rewardId]: successMessage }));
+      toast(successMessage, "success");
       const r = await api.getUserRewards(publicKey);
-      setRewards(r.rewards);
+      setRewards(r.data);
       await refreshBalance();
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : t("messages.redeemFailed"), "error");
+      const errorMessage = err instanceof Error ? err.message : t("messages.redeemFailed");
+      setRedeemStatus((prev) => ({ ...prev, [rewardId]: "error" }));
+      setRedeemMessage((prev) => ({ ...prev, [rewardId]: errorMessage }));
+      toast(errorMessage, "error");
     } finally {
-      setRedeemingId(null);
+      window.setTimeout(() => {
+        setRedeemStatus((prev) => ({ ...prev, [rewardId]: "idle" }));
+        setRedeemMessage((prev) => ({ ...prev, [rewardId]: "" }));
+      }, 3000);
     }
   };
-
-  if (!publicKey) {
-    return (
-      <div className="container">
-        <NetworkBanner />
-        <div className="alert alert-warning" style={{ marginTop: "2rem" }}>
-          Please connect your Freighter wallet to view campaigns and rewards.
-        </div>
-      </div>
-    );
-  }
 
   const hasMore = total !== null && offset < total;
 
   return (
-    <div className="container">
-      <NetworkBanner />
+    <WalletGuard redirectTo="/dashboard">
+      <div className="container">
+        <NetworkBanner />
 
-      <section style={{ marginBottom: "2rem" }}>
+        <section style={{ marginBottom: "2rem" }}>
         <h1 className="page-title">Active Campaigns</h1>
         {campaignError ? (
           <ErrorState message={campaignError} onRetry={() => loadCampaigns(0, true)} />
@@ -173,7 +178,6 @@ export default function DashboardPage() {
                 key={campaign.id}
                 campaign={campaign}
                 isClaimed={optimisticClaimed.has(campaign.id)}
-                isClaiming={claimingId === campaign.id}
                 onClaim={() => handleClaim(campaign.id)}
                 disabled={networkDisabled}
               />
@@ -192,13 +196,15 @@ export default function DashboardPage() {
         <RewardList
           rewards={rewards}
           onRedeem={networkDisabled ? undefined : handleRedeem}
-          redeeming={redeemingId}
+          redeemStatus={redeemStatus}
+          redeemMessage={redeemMessage}
           error={rewardError}
           onRetry={loadRewards}
         />
       </section>
 
       {hasMore && <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />}
-    </div>
+      </div>
+    </WalletGuard>
   );
 }

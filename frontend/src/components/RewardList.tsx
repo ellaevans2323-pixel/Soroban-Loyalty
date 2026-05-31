@@ -9,14 +9,17 @@
  * import { RewardList } from '@/components/RewardList';
  * 
  * export function RewardsPage({ rewards }) {
- *   const [redeeming, setRedeeming] = useState<string | null>(null);
+ *   const [redeemStatus, setRedeemStatus] = useState<Record<string, 'idle' | 'loading' | 'success' | 'error'>>({});
+ *   const [redeemMessage, setRedeemMessage] = useState<Record<string, string>>({});
  *   
  *   const handleRedeem = async (reward: Reward) => {
- *     setRedeeming(reward.id);
+ *     setRedeemStatus((prev) => ({ ...prev, [reward.id]: 'loading' }));
  *     try {
  *       await redeemReward(reward.id);
- *     } finally {
- *       setRedeeming(null);
+ *       setRedeemStatus((prev) => ({ ...prev, [reward.id]: 'success' }));
+ *     } catch (err) {
+ *       setRedeemStatus((prev) => ({ ...prev, [reward.id]: 'error' }));
+ *       setRedeemMessage((prev) => ({ ...prev, [reward.id]: err.message }));
  *     }
  *   };
  *   
@@ -24,7 +27,8 @@
  *     <RewardList
  *       rewards={rewards}
  *       onRedeem={handleRedeem}
- *       redeeming={redeeming}
+ *       redeemStatus={redeemStatus}
+ *       redeemMessage={redeemMessage}
  *     />
  *   );
  * }
@@ -55,12 +59,13 @@ import { ErrorState } from "@/components/ErrorState";
 interface Props {
   rewards: Reward[];
   onRedeem?: (reward: Reward) => void;
-  redeeming?: string | null;
+  redeemStatus?: Record<string, 'idle' | 'loading' | 'success' | 'error'>;
+  redeemMessage?: Record<string, string>;
   error?: string | null;
   onRetry?: () => void;
 }
 
-export function RewardList({ rewards, onRedeem, redeeming, error, onRetry }: Props) {
+export function RewardList({ rewards, onRedeem, redeemStatus = {}, redeemMessage = {}, error, onRetry }: Props) {
   const { t } = useI18n();
 
   if (error) {
@@ -90,16 +95,31 @@ export function RewardList({ rewards, onRedeem, redeeming, error, onRetry }: Pro
             <span>{r.redeemed ? t('rewards.redeemed', { amount: r.redeemed_amount.toString() }) : t('rewards.available')}</span>
             <span>{new Date(r.claimed_at).toLocaleDateString()}</span>
           </div>
-          {onRedeem && !r.redeemed && (
-            <button
-              onClick={() => onRedeem(r)}
-              disabled={redeeming === r.id}
-              className="btn btn-secondary"
-              aria-label={`Redeem ${r.amount} LYT from campaign ${r.campaign_id}`}
-            >
-              {redeeming === r.id ? t('rewards.actions.redeeming') : t('rewards.actions.redeem')}
-            </button>
-          )}
+          {onRedeem && !r.redeemed && (() => {
+            const status = redeemStatus[r.id] ?? 'idle';
+            const isLoading = status === 'loading';
+            const isSuccess = status === 'success';
+            const isError = status === 'error';
+            const buttonText = isLoading
+              ? t('rewards.actions.redeeming')
+              : isSuccess
+              ? t('rewards.actions.redeemed')
+              : isError
+              ? redeemMessage[r.id] || t('messages.redeemFailed')
+              : t('rewards.actions.redeem');
+
+            return (
+              <button
+                onClick={() => onRedeem(r)}
+                disabled={isLoading || isSuccess}
+                className="btn btn-secondary"
+                aria-label={`Redeem ${r.amount} LYT from campaign ${r.campaign_id}`}
+              >
+                {isLoading && <span className="inline-spinner" aria-hidden="true" style={{ marginRight: 8 }} />}
+                {buttonText}
+              </button>
+            );
+          })()}
         </li>
       ))}
     </ul>

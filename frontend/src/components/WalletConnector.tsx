@@ -27,6 +27,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
 import { Tooltip } from "@/components/Tooltip";
 import { TruncatedAddress } from "@/components/TruncatedAddress";
@@ -76,6 +77,9 @@ function FreighterModal({ onClose }: { onClose: () => void }) {
 }
 
 export function WalletConnector() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
   const { publicKey, connecting, lytBalance, balanceLoading, connect, disconnect } = useWallet();
   const [showModal, setShowModal] = useState(false);
 
@@ -90,7 +94,11 @@ export function WalletConnector() {
       setShowModal(true);
       return;
     }
+
     await connect();
+    if (redirect) {
+      router.replace(redirect.startsWith("/") ? redirect : "/");
+    }
   };
 
   if (publicKey) {

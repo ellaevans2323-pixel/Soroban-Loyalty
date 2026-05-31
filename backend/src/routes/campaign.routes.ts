@@ -7,7 +7,6 @@ import {
   reorderCampaigns,
   softDeleteCampaign,
   restoreCampaign,
-  upsertCampaign,
   CampaignFilters,
 } from "../services/campaign.service";
 import { redisClient } from "../lib/redis";
@@ -20,18 +19,6 @@ import { requireAuth, AuthRequest } from "../auth";
 import { sanitizeBody } from "../middleware/sanitize";
 
 export const campaignRouter = Router();
-
-// Campaign creation validation schema (#282)
-const CreateCampaignSchema = z.object({
-  name: z.string().min(1, "name is required").max(100, "name must be ≤ 100 characters"),
-  reward_amount: z.number().int().positive("reward_amount must be a positive integer"),
-  expires_at: z
-    .string()
-    .datetime({ message: "expires_at must be a valid ISO 8601 timestamp" })
-    .refine((val) => new Date(val) > new Date(), { message: "expires_at must be a future date" }),
-  merchant: z.string().optional(),
-  description: z.string().optional(),
-});
 
 // Route-specific validation schemas
 const CampaignQuerySchema = z.object({
@@ -291,6 +278,35 @@ campaignRouter.patch("/reorder", validateBody(ReorderSchema), asyncHandler(async
   const { order } = req.body;
   await reorderCampaigns(order);
   res.json({ ok: true });
+}));
+
+/**
+ * PATCH /campaigns/:id
+ * Deactivates a campaign. Requires auth; restricted to campaign owner.
+ * Invalidates the campaign list cache in Redis on success.
+ */
+campaignRouter.patch("/:id", requireAuth, asyncHandler(async (req: Request, res: Response) => {
+  if (req.body?.is_active !== false) {
+    throw new BadRequestError("Body must contain { is_active: false }");
+  }
+  const id = parseStrictInteger(String(req.params.id));
+  if (id === null) throw new BadRequestError("Invalid id");
+
+  const actorAddress = (req as AuthRequest).merchantPublicKey;
+  const result = await deactivateCampaign(id, actorAddress);
+
+  if (result === null) throw new NotFoundError("Campaign");
+  if (result === "forbidden") return res.status(403).json({ error: "Forbidden: not the campaign owner" });
+
+  // Invalidate all campaign list cache keys
+  try {
+    const keys = await redisClient.keys("campaigns:list:*");
+    if (keys.length > 0) await redisClient.del(...keys);
+  } catch (err) {
+    logger.error("Redis cache invalidation error", err as Error);
+  }
+
+  res.json({ campaign: result });
 }));
 
 /**

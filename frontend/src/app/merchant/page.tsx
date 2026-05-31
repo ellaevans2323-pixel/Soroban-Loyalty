@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { api, Campaign } from "@/lib/api";
+import { WalletGuard } from "@/components/WalletGuard";
 import { CampaignTable } from "@/components/CampaignTable";
 import { CreateCampaignForm } from "@/components/CreateCampaignForm";
 import { EmptyState } from "@/components/EmptyState";
@@ -14,20 +15,15 @@ export default function MerchantPage() {
   const [loading, setLoading] = useState(true);
 
   const loadCampaigns = async () => {
-    setLoading(true);
-    try {
-      const r = await api.getCampaigns(100, 0);
-      if (publicKey) {
-        setCampaigns(r.campaigns.filter((c) => c.merchant === publicKey));
-      } else {
-        setCampaigns(r.campaigns);
-      }
-    } finally {
-      setLoading(false);
-    }
+    if (!publicKey) return;
+    const r = await api.getCampaigns(100, 0);
+    setCampaigns(r.campaigns.filter((c) => c.merchant === publicKey));
   };
 
-  useEffect(() => { loadCampaigns().catch(console.error); }, [publicKey]);
+  useEffect(() => {
+    if (!publicKey) return;
+    loadCampaigns().catch(console.error);
+  }, [publicKey]);
 
   const handleDeactivate = async (id: number) => {
     if (!publicKey) throw new Error("Wallet not connected");
@@ -36,14 +32,11 @@ export default function MerchantPage() {
   };
 
   return (
-    <div>
-      <h1 className="page-title">Merchant Portal</h1>
+    <WalletGuard redirectTo="/merchant">
+      <div>
+        <h1 className="page-title">Merchant Portal</h1>
 
-      {!publicKey && (
-        <div className="alert alert-error">Connect your Freighter wallet to create campaigns.</div>
-      )}
-
-      <section style={{ marginBottom: 48 }}>
+        <section style={{ marginBottom: 48 }}>
         <h2 className="section-title">Create Campaign</h2>
         {publicKey ? (
           <CreateCampaignForm publicKey={publicKey} onSuccess={loadCampaigns} />
@@ -66,5 +59,6 @@ export default function MerchantPage() {
         )}
       </section>
     </div>
+    </WalletGuard>
   );
 }

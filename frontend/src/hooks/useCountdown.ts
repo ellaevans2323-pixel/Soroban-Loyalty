@@ -28,7 +28,7 @@ export function useCountdown(expirationUnix: number): CountdownResult {
       const next = calc();
       setState(next);
       if (next.expired) clearInterval(id);
-    }, 1000);
+    }, 60_000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expirationUnix, state.expired]);

@@ -13,10 +13,9 @@ export function errorHandler(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ) {
-  // Always log the full error including stack
   logger.error(err.message, err instanceof Error ? err : undefined, {
-    path: req.path,
     method: req.method,
+    path: req.path,
   });
 
   const isDev = process.env.NODE_ENV === 'development';
@@ -27,6 +26,11 @@ export function errorHandler(
     if (err.details) body.errors = err.details.errors ?? err.details;
     if (isDev) body.stack = err.stack;
     return res.status(err.statusCode).json(body);
+  }
+
+  // Payload too large errors from express.json body parser
+  if ((err as any).type === 'entity.too.large' || (err as any).status === 413) {
+    return res.status(413).json({ error: 'Payload too large. Request body must be under the configured limit.' });
   }
 
   // Zod validation errors

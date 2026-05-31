@@ -7,12 +7,12 @@ export type ToastVariant = "success" | "error" | "warning" | "info";
 export interface Toast {
   id: string;
   variant: ToastVariant;
-  message: string;
+  message: React.ReactNode;
   duration?: number;
 }
 
 interface ToastCtx {
-  toast: (message: string, variant?: ToastVariant, duration?: number) => void;
+  toast: (message: React.ReactNode, variant?: ToastVariant, duration?: number) => void;
 }
 
 const ToastContext = createContext<ToastCtx>({ toast: () => {} });
@@ -56,7 +56,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = useCallback((message: string, variant: ToastVariant = "info", duration?: number) => {
+  const toast = useCallback((message: React.ReactNode, variant: ToastVariant = "info", duration?: number) => {
     const id = `toast-${++counter.current}`;
     setToasts((prev) => {
       const next = [...prev, { id, variant, message, duration }];

@@ -50,8 +50,18 @@ export default function CampaignDetailClient({ id }: Props) {
     }
     setClaiming(true);
     try {
-      await claimReward(publicKey, id);
-      toast(t('messages.claimSuccess', { id: id.toString() }), "success");
+      const result = await claimReward(publicKey, id);
+      const explorerUrl = process.env.NEXT_PUBLIC_EXPLORER_URL || "https://stellar.expert/explorer/testnet";
+      const message = result.txHash ? (
+        <span>
+          {t('messages.claimSuccess', { id: id.toString() })}{" "}
+          <a href={`${explorerUrl}/tx/${result.txHash}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>
+            View on Explorer
+          </a>
+        </span>
+      ) : t('messages.claimSuccess', { id: id.toString() });
+
+      toast(message, "success");
       // Refresh campaign data
       const res = await api.getCampaign(id);
       setCampaign(res.campaign);
