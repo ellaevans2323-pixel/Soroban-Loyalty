@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { useI18n } from "@/context/I18nContext";
 import { api, Campaign, Reward } from "@/lib/api";
+import { WalletGuard } from "@/components/WalletGuard";
 import { claimReward, redeemReward } from "@/lib/soroban";
 import { CampaignCard } from "@/components/CampaignCard";
 import { RewardList } from "@/components/RewardList";
@@ -31,6 +32,7 @@ export default function DashboardPage() {
   const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -70,12 +72,14 @@ export default function DashboardPage() {
   }, [publicKey]);
 
   useEffect(() => {
+    if (!publicKey) return;
     loadCampaigns(0, true);
-  }, [loadCampaigns]);
+  }, [loadCampaigns, publicKey]);
 
   useEffect(() => {
+    if (!publicKey) return;
     loadRewards();
-  }, [loadRewards]);
+  }, [loadRewards, publicKey]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -139,24 +143,14 @@ export default function DashboardPage() {
     }
   };
 
-  if (!publicKey) {
-    return (
-      <div className="container">
-        <NetworkBanner />
-        <div className="alert alert-warning" style={{ marginTop: "2rem" }}>
-          Please connect your Freighter wallet to view campaigns and rewards.
-        </div>
-      </div>
-    );
-  }
-
   const hasMore = total !== null && offset < total;
 
   return (
-    <div className="container">
-      <NetworkBanner />
+    <WalletGuard redirectTo="/dashboard">
+      <div className="container">
+        <NetworkBanner />
 
-      <section style={{ marginBottom: "2rem" }}>
+        <section style={{ marginBottom: "2rem" }}>
         <h1 className="page-title">Active Campaigns</h1>
         {campaignError ? (
           <ErrorState message={campaignError} onRetry={() => loadCampaigns(0, true)} />
@@ -199,6 +193,7 @@ export default function DashboardPage() {
       </section>
 
       {hasMore && <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />}
-    </div>
+      </div>
+    </WalletGuard>
   );
 }

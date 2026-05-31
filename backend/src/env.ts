@@ -90,6 +90,9 @@ const envSchema = z.object({
   /** HTTP port the Express server listens on. Default: 3001. */
   PORT: portString(3001),
 
+  /** Maximum request body size accepted by the API. Default: 100kb. */
+  MAX_BODY_SIZE: z.string().default("100kb"),
+
   // ── Indexer ─────────────────────────────────────────────────────────────────
   /** Set to "false" to disable the on-chain event indexer. Default: true. */
   ENABLE_INDEXER: booleanString(true),

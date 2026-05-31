@@ -23,7 +23,7 @@ export function createApp() {
   const app = express();
 
   app.use(cors());
-  app.use(express.json());
+  app.use(express.json({ limit: env.MAX_BODY_SIZE ?? "100kb" }));
   app.use(requestLogger);
   app.use(globalLimiter);
 
