@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { api, AnalyticsData } from "@/lib/api";
 import { ExperimentStatsPanel } from "@/components/ExperimentStatsPanel";
@@ -29,6 +29,26 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aggregation, setAggregation] = useState<"daily" | "weekly">("daily");
+
+  const timeSeriesData = useMemo(() => {
+    if (!data || !data.claimsOverTime) return [];
+    if (aggregation === "daily") return data.claimsOverTime;
+
+    const weekly: Record<string, number> = {};
+    data.claimsOverTime.forEach((row) => {
+      const date = new Date(row.date);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      const startOfWeek = new Date(date.setDate(diff));
+      const weekStr = startOfWeek.toISOString().split("T")[0];
+      weekly[weekStr] = (weekly[weekStr] || 0) + row.claims;
+    });
+
+    return Object.entries(weekly)
+      .map(([date, claims]) => ({ date, claims }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [data, aggregation]);
 
   const loadAnalytics = () => {
     setLoading(true);
@@ -142,12 +162,30 @@ export default function AnalyticsPage() {
           )}
 
           {/* Line chart: claims over time */}
-          <h2 className="section-title" style={{ marginTop: 40 }}>Claims Over Time</h2>
-          {data.claimsOverTime.length > 0 ? (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 40, marginBottom: 16 }}>
+            <h2 className="section-title" style={{ margin: 0 }}>Claims Over Time</h2>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button 
+                onClick={() => setAggregation("daily")} 
+                className={`btn ${aggregation === "daily" ? "btn-primary" : "btn-secondary"}`}
+                style={{ padding: "4px 12px", fontSize: "0.875rem", minHeight: "32px" }}
+              >
+                Daily
+              </button>
+              <button 
+                onClick={() => setAggregation("weekly")} 
+                className={`btn ${aggregation === "weekly" ? "btn-primary" : "btn-secondary"}`}
+                style={{ padding: "4px 12px", fontSize: "0.875rem", minHeight: "32px" }}
+              >
+                Weekly
+              </button>
+            </div>
+          </div>
+          {timeSeriesData.length > 0 ? (
             <>
               <div style={{ width: "100%", height: 280 }} aria-hidden="true">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.claimsOverTime} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                  <LineChart data={timeSeriesData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 11 }} />
                     <YAxis tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
@@ -171,7 +209,7 @@ export default function AnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.claimsOverTime.map((row) => (
+                    {timeSeriesData.map((row) => (
                       <tr key={row.date} style={{ borderBottom: "1px solid var(--border)" }}>
                         <td style={{ padding: "8px 12px" }}>{row.date}</td>
                         <td style={{ padding: "8px 12px", textAlign: "right" }}>{row.claims}</td>
