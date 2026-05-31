@@ -40,28 +40,23 @@ import { useCountdown } from "@/hooks/useCountdown";
 import { Tooltip } from "@/components/Tooltip";
 import { TruncatedAddress } from "@/components/TruncatedAddress";
 
-/**
- * Props for CampaignCard component
- * 
- * @typedef {Object} CampaignCardProps
- * @property {Campaign} campaign - Campaign data to display
- * @property {(id: number) => void} [onClaim] - Callback when user clicks claim button
- * @property {boolean} [claiming] - Whether claim is in progress (disables button)
- * @property {(id: number) => Promise<void>} [onDeactivate] - Callback to deactivate campaign (merchant only)
- * @property {boolean} [isMerchantOwned] - Whether current user is the campaign merchant
- */
+type ClaimState = "idle" | "loading" | "success" | "error";
+
 interface Props {
   campaign: Campaign;
-  onClaim?: (id: number) => void;
-  claiming?: boolean;
+  onClaim?: () => Promise<void>;
+  isClaimed?: boolean;
+  isClaiming?: boolean;
+  disabled?: boolean;
   onDeactivate?: (id: number) => Promise<void>;
   isMerchantOwned?: boolean;
 }
 
-export function CampaignCard({ campaign, onClaim, claiming, onDeactivate, isMerchantOwned }: Props) {
+export function CampaignCard({ campaign, onClaim, isClaimed, isClaiming, disabled, onDeactivate, isMerchantOwned }: Props) {
   const { t } = useI18n();
   const countdown = useCountdown(campaign.expiration);
   const prevMinuteRef = useRef<number | null>(null);
+  const [claimState, setClaimState] = useState<ClaimState>(isClaiming ? "loading" : "idle");
   const [showConfirm, setShowConfirm] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
   const [deactivateError, setDeactivateError] = useState<string | null>(null);
@@ -69,7 +64,20 @@ export function CampaignCard({ campaign, onClaim, claiming, onDeactivate, isMerc
   const isInactive = !campaign.active;
   const statusKey = isInactive ? "inactive" : countdown.expired ? "expired" : "active";
   const status = t(`campaigns.status.${statusKey}`);
-  const canClaim = campaign.active && !countdown.expired;
+  const canClaim = campaign.active && !countdown.expired && !isClaimed;
+
+  const handleClaimClick = async () => {
+    if (!onClaim || claimState === "loading") return;
+    setClaimState("loading");
+    try {
+      await onClaim();
+      setClaimState("success");
+      setTimeout(() => setClaimState("idle"), 2000);
+    } catch {
+      setClaimState("error");
+      setTimeout(() => setClaimState("idle"), 3000);
+    }
+  };
 
   const announceMinute =
     !countdown.expired &&
@@ -147,13 +155,17 @@ export function CampaignCard({ campaign, onClaim, claiming, onDeactivate, isMerc
         {onClaim && (
           <Tooltip content="Claim this campaign to earn LYT tokens to your wallet">
             <button
-              onClick={() => onClaim(campaign.id)}
-              disabled={!canClaim || claiming}
-              className="btn btn-primary"
+              onClick={handleClaimClick}
+              disabled={!canClaim || claimState === "loading" || claimState === "success" || disabled}
+              className={`btn ${claimState === "error" ? "btn-danger" : "btn-primary"}`}
+              aria-live="polite"
             >
-              {claiming
-                ? t("campaigns.actions.claiming")
-                : t("campaigns.actions.claim")}
+              {claimState === "loading" && (
+                <><span className="btn-spinner" aria-hidden="true" /> {t("campaigns.actions.claiming")}</>
+              )}
+              {claimState === "success" && "✓ Claimed!"}
+              {claimState === "error" && "✕ Failed"}
+              {(claimState === "idle") && (isClaimed ? "✓ Claimed" : t("campaigns.actions.claim"))}
             </button>
           </Tooltip>
         )}
