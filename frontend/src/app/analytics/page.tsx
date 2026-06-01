@@ -34,7 +34,9 @@ interface ChartTooltipProps {
   label?: string;
 }
 
-/** Custom tooltip matching the design system. Keyboard-accessible via aria-live on the chart wrapper. */
+/** Custom tooltip matching the design system. Keyboard-accessible via aria-live on the chart wrapper.
+ *  Shown on hover and focus of chart data points. Positioned to avoid viewport clipping.
+ */
 function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
