@@ -11,43 +11,76 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
-interface Props {
+type FocusTrapProps = {
   active: boolean;
   children: React.ReactNode;
-}
+};
+
 
 /**
  * Traps keyboard focus within its children when `active` is true.
- * Use this to wrap modal dialogs for WCAG 2.1 AA compliance.
+ * Also restores focus to the previously-focused element when closing.
  */
-export function FocusTrap({ active, children }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
+export function FocusTrap({ active, children }: FocusTrapProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const previouslyFocusedEl = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (!active || !ref.current) return;
-
     const el = ref.current;
-    const focusable = () => Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE));
+    if (!el) return;
 
-    // Focus first element on mount
-    focusable()[0]?.focus();
+    const getFocusable = () =>
+      Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((node) => {
+        // Only keep elements that can actually be focused.
+        const style = window.getComputedStyle(node);
+        return style.visibility !== "hidden" && style.display !== "none";
+      });
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      const items = focusable();
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-      } else {
-        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
-      }
+    if (active) {
+      previouslyFocusedEl.current = document.activeElement as HTMLElement | null;
+
+      const items = getFocusable();
+      (items[0] ?? el).focus();
+
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key !== "Tab") return;
+        const itemsNow = getFocusable();
+        if (itemsNow.length === 0) return;
+
+        const first = itemsNow[0];
+        const last = itemsNow[itemsNow.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      };
+
+      el.addEventListener("keydown", onKeyDown);
+      return () => {
+        el.removeEventListener("keydown", onKeyDown);
+      };
+    }
+
+    // Restore focus when closing.
+    return () => {
+      const restoreTo = previouslyFocusedEl.current;
+      previouslyFocusedEl.current = null;
+      restoreTo?.focus?.();
     };
-
-    el.addEventListener("keydown", handleKeyDown);
-    return () => el.removeEventListener("keydown", handleKeyDown);
   }, [active]);
 
-  return <div ref={ref}>{children}</div>;
+  return (
+    <div ref={ref} tabIndex={-1}>
+      {children}
+    </div>
+  );
 }
+
