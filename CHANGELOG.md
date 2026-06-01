@@ -3,6 +3,13 @@
 
 ### Features
 
+* **frontend:** add confirmation modal before redeem (burn) action ([#329](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/329)) ([3bd3210](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/3bd321068204ae2831c78ed7e2a1ff38241a02a8))
+
+# [1.53.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.52.0...v1.53.0) (2026-06-01)
+
+
+### Features
+
 * **frontend:** add confirmation modal before redeem (burn) action ([3bd3210](https://github.com/Ndanusa/Soroban-Loyalty/commit/3bd32106)), closes [#329](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/329)
 
 # [1.52.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.51.0...v1.52.0) (2026-05-31)
