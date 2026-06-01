@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { getAnalytics } from "../services/analytics.service";
+import { getAnalytics, getCampaignAnalytics } from "../services/analytics.service";
 import { asyncHandler } from "../middleware/errorHandler";
 import { validateQuery } from "../middleware/validation";
 
@@ -42,4 +42,26 @@ analyticsRouter.get("/", validateQuery(AnalyticsQuerySchema), asyncHandler(async
   const { days } = req.query as any;
   const data = await getAnalytics(days);
   res.json(data);
+}));
+
+/**
+ * @openapi
+ * /analytics/campaigns:
+ *   get:
+ *     summary: Get campaign analytics
+ *     description: Returns total_campaigns, total_claims, claims_per_day (last 30 days), and top_campaigns (top 5). Cached in Redis for 5 minutes.
+ *     tags: [Analytics]
+ *     responses:
+ *       200:
+ *         description: Campaign analytics data.
+ *       503:
+ *         description: Database unavailable.
+ */
+analyticsRouter.get("/campaigns", asyncHandler(async (_req: Request, res: Response) => {
+  try {
+    const data = await getCampaignAnalytics();
+    res.json(data);
+  } catch {
+    res.status(503).json({ error: "Database unavailable" });
+  }
 }));

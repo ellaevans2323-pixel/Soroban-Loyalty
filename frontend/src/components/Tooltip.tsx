@@ -47,6 +47,13 @@ export function Tooltip({ content, children, delay = 300 }: Props) {
     setVisible(false);
   };
 
+  useEffect(() => {
+    if (!visible) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") hide(); };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [visible]);
+
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   // Clone child to inject ref + aria + event handlers

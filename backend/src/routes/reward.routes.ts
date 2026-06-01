@@ -1,11 +1,12 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { createRewardClaim, DuplicateClaimError, getRewardsByUser } from "../services/reward.service";
+import { createRewardClaim, DuplicateClaimError, getRewardsByUser, getRewardsByUserPaginated } from "../services/reward.service";
 import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
 import { isValidStellarAddress } from "../utils/validation";
 import { rewardsLimiter } from "../middleware/rateLimiter";
+import { StellarAddressParamSchema } from "./schemas";
 
 export const rewardRouter = Router();
 
@@ -48,28 +49,31 @@ const ClaimSchema = z.object({
  *       500:
  *         description: Server error.
  */
-rewardRouter.get("/user/:address/rewards", rewardsLimiter, asyncHandler(async (req: Request, res: Response) => {
+rewardRouter.get("/user/:address/rewards", rewardsLimiter, validateParams(StellarAddressParamSchema), asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
-  if (!isValidStellarAddress(address)) {
-    throw new BadRequestError("Invalid Stellar address", { address });
-  }
+  const limitRaw = req.query.limit as string | undefined;
+  const offsetRaw = req.query.offset as string | undefined;
+
+  const limit = limitRaw !== undefined ? parseInt(limitRaw, 10) : undefined;
+  const offset = offsetRaw !== undefined ? parseInt(offsetRaw, 10) : 0;
+
   try {
-    const rewards = await getRewardsByUser(address);
+    const rewards = await getRewardsByUser(address, limit, offset);
     res.json({ rewards });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch rewards" });
   }
+
+  const result = await getRewardsByUserPaginated(address, limitRaw, offsetRaw);
+  res.json(result);
 }));
 
 /**
  * POST /user/:address/rewards/claim
  * Inserts a reward claim once per (user, campaign). Duplicate claims return 409.
  */
-rewardRouter.post("/user/:address/rewards/claim", asyncHandler(async (req: Request, res: Response) => {
+rewardRouter.post("/user/:address/rewards/claim", validateParams(StellarAddressParamSchema), asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
-  if (!isValidStellarAddress(address)) {
-    throw new BadRequestError("Invalid Stellar address", { address });
-  }
 
   const parsed = ClaimSchema.safeParse(req.body);
   if (!parsed.success) {

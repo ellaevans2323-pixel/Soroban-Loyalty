@@ -1,4 +1,4 @@
-import { Request } from "express";
+import { Request, Response, NextFunction } from "express";
 import { env } from "./env";
 import { getCorrelationId } from "./correlation";
 
@@ -88,13 +88,27 @@ export const logger = {
   },
 };
 
-/** Express middleware: attaches request context to errors and alerts on 5xx */
-export function requestLogger(
-  req: Request,
-  _res: unknown,
-  next: () => void
-): void {
-  (req as Request & { _startAt: number })._startAt = Date.now();
+/** Express middleware: logs request arrival and completion, sets _startAt for duration tracking. */
+export function requestLogger(req: Request, res: Response, next: NextFunction): void {
+  const startAt = Date.now();
+  (req as Request & { _startAt: number })._startAt = startAt;
+
+  logger.info("Request received", {
+    method: req.method,
+    path: req.path,
+    ip: req.ip,
+  });
+
+  res.on("finish", () => {
+    const durationMs = Date.now() - startAt;
+    logger.info("Request completed", {
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      durationMs,
+    });
+  });
+
   next();
 }
 

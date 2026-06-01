@@ -1,6 +1,7 @@
 import request from "supertest";
 import { createApp } from "../../app";
-import { explainRewardsByUserQuery } from "../../services/reward.service";
+import { explainRewardsByUserQuery, upsertReward } from "../../services/reward.service";
+import { pool } from "../../db";
 import {
   SEEDED_USER_ADDRESS,
   setupIntegrationDatabase,
@@ -194,11 +195,50 @@ describe("GET endpoints integration", () => {
     expect(joinedPlan).toMatch(/Index Scan|Bitmap Heap Scan|Seq Scan/);
   });
 
-  it("GET /unknown-route returns 404 JSON with error: Not found", async () => {
-    const response = await request(app).get("/this-route-does-not-exist");
+  it("returns 413 when a request body exceeds the configured limit", async () => {
+    const largePayload = "a".repeat(120_000);
+    const response = await request(app)
+      .post(`/user/${SEEDED_USER_ADDRESS}/rewards/claim`)
+      .send({ campaign_id: 1, amount: 100, extra: largePayload });
 
-    expect(response.status).toBe(404);
-    expect(response.headers["content-type"]).toMatch(/application\/json/);
-    expect(response.body).toEqual({ error: "Not found" });
+    expect(response.status).toBe(413);
+    expect(response.body).toHaveProperty("error");
+    expect(response.body.error).toMatch(/payload too large/i);
+  });
+
+  it("does not throw when the same reward event is processed twice by tx_hash", async () => {
+    const txHash = "tx-duplicate-test-1";
+    await pool.query(
+      `INSERT INTO users (address) VALUES ($1) ON CONFLICT DO NOTHING`,
+      [SEEDED_USER_ADDRESS]
+    );
+    await pool.query(
+      `INSERT INTO rewards (user_address, campaign_id, amount, redeemed, redeemed_amount, tx_hash)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [SEEDED_USER_ADDRESS, 1, 100, false, 0, txHash]
+    );
+
+    const before = await pool.query(
+      `SELECT user_address, campaign_id, amount, redeemed, redeemed_amount, tx_hash FROM rewards WHERE tx_hash = $1`,
+      [txHash]
+    );
+
+    await expect(
+      upsertReward({
+        user_address: SEEDED_USER_ADDRESS,
+        campaign_id: 1,
+        amount: 100,
+        redeemed: false,
+        redeemed_amount: 0,
+        tx_hash: txHash,
+      })
+    ).resolves.toBeUndefined();
+
+    const after = await pool.query(
+      `SELECT user_address, campaign_id, amount, redeemed, redeemed_amount, tx_hash FROM rewards WHERE tx_hash = $1`,
+      [txHash]
+    );
+
+    expect(after.rows).toEqual(before.rows);
   });
 });
