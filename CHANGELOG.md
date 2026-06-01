@@ -1,3 +1,10 @@
+## [1.55.1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.55.0...v1.55.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **#292:** make campaign grid responsive for mobile viewports ([27e3f9d](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/27e3f9d860f31d16c093c7311b8d2b6d347fde22)), closes [#292](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/292)
+
 # [1.55.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.54.0...v1.55.0) (2026-06-01)
 
 
