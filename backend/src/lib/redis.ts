@@ -30,4 +30,12 @@ export const redisClient = {
   async setex(key: string, seconds: number, value: string): Promise<void> {
     await getRedis().setex(key, seconds, value);
   },
+
+  async keys(pattern: string): Promise<string[]> {
+    return getRedis().keys(pattern);
+  },
+
+  async del(...keys: string[]): Promise<void> {
+    if (keys.length > 0) await getRedis().del(...keys);
+  },
 };
