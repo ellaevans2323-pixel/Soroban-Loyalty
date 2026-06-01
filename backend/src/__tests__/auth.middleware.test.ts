@@ -45,4 +45,16 @@ describe("requireAuth middleware", () => {
     expect((res.status as jest.Mock).mock.calls[0][0]).toBe(401);
     expect(next).not.toHaveBeenCalled();
   });
+
+  it("returns 401 for an expired token", () => {
+    const b64url = (s: string) => Buffer.from(s).toString("base64url");
+    const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+    const payload = b64url(JSON.stringify({ sub: "GABC", exp: 1 })); // exp in 1970
+    const expiredToken = `${header}.${payload}.fakesig`;
+    const req = { headers: { authorization: `Bearer ${expiredToken}` } } as Request;
+    const res = mockRes();
+    requireAuth(req, res, next);
+    expect((res.status as jest.Mock).mock.calls[0][0]).toBe(401);
+    expect(next).not.toHaveBeenCalled();
+  });
 });
