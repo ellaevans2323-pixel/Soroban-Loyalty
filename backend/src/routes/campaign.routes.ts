@@ -7,6 +7,7 @@ import {
   reorderCampaigns,
   softDeleteCampaign,
   restoreCampaign,
+  upsertCampaign,
   CampaignFilters,
 } from "../services/campaign.service";
 import { redisClient } from "../lib/redis";
