@@ -178,4 +178,17 @@ describe("Tooltip", () => {
     act(() => jest.advanceTimersByTime(200));
     expect(screen.getByRole("tooltip")).toBeInTheDocument();
   });
+
+  test("tooltip dismisses on Escape key", () => {
+    render(
+      <Tooltip content="Escape hint">
+        <button>Hover me</button>
+      </Tooltip>
+    );
+    fireEvent.mouseEnter(screen.getByRole("button"));
+    act(() => jest.advanceTimersByTime(300));
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
 });
