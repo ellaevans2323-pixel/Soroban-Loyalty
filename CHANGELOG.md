@@ -1,3 +1,14 @@
+# [1.55.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.54.0...v1.55.0) (2026-06-01)
+
+
+### Features
+
+* **analytics:** add interactive tooltips to analytics charts ([4528a4d](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/4528a4d56e6cc15d461bf8e3d512a517f85f5ba2)), closes [#287](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/287)
+* auth middleware, 404 handler, animated balance, chart tooltips ([a8930a6](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/a8930a65b1e576038c8e8ffb1ad122990fcf3aeb)), closes [#286](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/286) [#288](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/288) [#285](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/285) [#287](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/287)
+* **auth:** add JWT auth middleware for merchant routes ([7971435](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/797143542d6ea7f890f9e60d4e1709069ccd9236)), closes [#288](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/288)
+* **backend:** add JSON 404 handler for unknown routes ([7f5bb58](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/7f5bb580dc67a5aabfcb4b70cc2eaa6b04f073d2)), closes [#286](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/286)
+* **dashboard:** implement animated LYT balance counter ([9f2ed30](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/9f2ed3045f9bb14c2228a731c2e29fc3a1d0ba35)), closes [#285](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/285)
+
 # [1.54.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.53.0...v1.54.0) (2026-06-01)
 
 
