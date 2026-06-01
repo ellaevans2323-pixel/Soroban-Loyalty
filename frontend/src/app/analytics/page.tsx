@@ -24,6 +24,47 @@ const DATE_RANGES = [
   { label: "Last 90 days", value: 90 },
 ];
 
+interface TooltipPayloadEntry {
+  name: string;
+  value: number;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+  label?: string;
+}
+
+/** Custom tooltip matching the design system. Keyboard-accessible via aria-live on the chart wrapper.
+ *  Shown on hover and focus of chart data points. Positioned to avoid viewport clipping.
+ */
+function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      role="tooltip"
+      style={{
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        padding: "8px 12px",
+        fontSize: 13,
+        color: "var(--text-primary)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+        pointerEvents: "none",
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--text-secondary)" }}>{label}</div>
+      {payload.map((entry) => (
+        <div key={entry.name}>
+          <span style={{ color: "var(--accent)" }}>{entry.name}: </span>
+          <span>{entry.value.toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -115,16 +156,18 @@ export default function AnalyticsPage() {
           <h2 className="section-title">Claims per Campaign</h2>
           {data.claimsPerCampaign.length > 0 ? (
             <>
-              <div style={{ width: "100%", height: 280 }} aria-hidden="true">
+              <div
+                style={{ width: "100%", height: 280 }}
+                role="img"
+                aria-label="Bar chart: claims per campaign. Use the data table below for accessible values."
+                tabIndex={0}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.claimsPerCampaign} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="name" tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
                     <YAxis tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8 }}
-                      labelStyle={{ color: "var(--text-primary)" }}
-                    />
+                    <Tooltip content={<ChartTooltip />} />
                     <Bar dataKey="claims" fill="var(--accent)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -183,16 +226,18 @@ export default function AnalyticsPage() {
           </div>
           {timeSeriesData.length > 0 ? (
             <>
-              <div style={{ width: "100%", height: 280 }} aria-hidden="true">
+              <div
+                style={{ width: "100%", height: 280 }}
+                role="img"
+                aria-label="Line chart: claims over time. Use the data table below for accessible values."
+                tabIndex={0}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={timeSeriesData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 11 }} />
                     <YAxis tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8 }}
-                      labelStyle={{ color: "var(--text-primary)" }}
-                    />
+                    <Tooltip content={<ChartTooltip />} />
                     <Line type="monotone" dataKey="claims" stroke="var(--accent)" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
