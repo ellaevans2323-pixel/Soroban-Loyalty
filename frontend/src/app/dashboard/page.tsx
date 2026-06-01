@@ -28,13 +28,18 @@ export default function DashboardPage() {
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [rewardError, setRewardError] = useState<string | null>(null);
-  const [redeemingId, setRedeemingId] = useState<string | null>(null);
-  const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
+  const [redeemStatus, setRedeemStatus] = useState<
+    Record<string, "idle" | "loading" | "success" | "error">
+  >({});
+  const [redeemMessage, setRedeemMessage] = useState<Record<string, string>>(
+    {}
+  );
+  const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(
+    new Set()
+  );
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
-  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const networkDisabled = health.status === "unreachable";
@@ -46,11 +51,15 @@ export default function DashboardPage() {
       setCampaignError(null);
       try {
         const response = await api.getCampaigns(PAGE_SIZE, nextOffset);
-        setCampaigns((prev) => (replace ? response.campaigns : [...prev, ...response.campaigns]));
+        setCampaigns((prev) =>
+          replace ? response.campaigns : [...prev, ...response.campaigns]
+        );
         setOffset(nextOffset + response.campaigns.length);
         setTotal(response.total);
       } catch (err) {
-        setCampaignError(err instanceof Error ? err.message : "Failed to load campaigns");
+        setCampaignError(
+          err instanceof Error ? err.message : "Failed to load campaigns"
+        );
       } finally {
         setLoadingMore(false);
         if (replace) setLoadingCampaigns(false);
@@ -65,10 +74,14 @@ export default function DashboardPage() {
     try {
       const r = await api.getUserRewards(publicKey);
       setRewards(r.data);
-      const claimedIds = r.data.filter((rw) => !rw.redeemed).map((rw) => rw.campaign_id);
+      const claimedIds = r.data
+        .filter((rw) => !rw.redeemed)
+        .map((rw) => rw.campaign_id);
       setOptimisticClaimed(new Set(claimedIds));
     } catch (err) {
-      setRewardError(err instanceof Error ? err.message : "Failed to load rewards");
+      setRewardError(
+        err instanceof Error ? err.message : "Failed to load rewards"
+      );
     }
   }, [publicKey]);
 
@@ -87,7 +100,12 @@ export default function DashboardPage() {
     if (!sentinel) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loadingMore && total !== null && offset < total) {
+        if (
+          entries[0].isIntersecting &&
+          !loadingMore &&
+          total !== null &&
+          offset < total
+        ) {
           loadCampaigns(offset);
         }
       },
@@ -109,7 +127,10 @@ export default function DashboardPage() {
     try {
       await claimReward(publicKey, campaignId);
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : t("messages.claimFailed"), "error");
+      toast(
+        err instanceof Error ? err.message : t("messages.claimFailed"),
+        "error"
+      );
       throw err;
     }
     setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
@@ -119,7 +140,11 @@ export default function DashboardPage() {
     await refreshBalance();
   };
 
-  const handleRedeem = async (rewardId: string, amount: number) => {
+  /**
+   * Called after the user has confirmed the redeem action in the modal.
+   * Accepts the full Reward object so the list can show per-item status.
+   */
+  const handleRedeem = async (reward: Reward) => {
     if (!publicKey) {
       toast("Please connect your wallet first", "error");
       return;
@@ -129,12 +154,15 @@ export default function DashboardPage() {
       return;
     }
 
+    const rewardId = reward.id;
     setRedeemStatus((prev) => ({ ...prev, [rewardId]: "loading" }));
     setRedeemMessage((prev) => ({ ...prev, [rewardId]: "" }));
 
     try {
-      await redeemReward(publicKey, BigInt(amount));
-      const successMessage = t("messages.redeemSuccess", { amount: amount.toString() });
+      await redeemReward(publicKey, BigInt(reward.amount));
+      const successMessage = t("messages.redeemSuccess", {
+        amount: reward.amount.toString(),
+      });
       setRedeemStatus((prev) => ({ ...prev, [rewardId]: "success" }));
       setRedeemMessage((prev) => ({ ...prev, [rewardId]: successMessage }));
       toast(successMessage, "success");
@@ -142,7 +170,8 @@ export default function DashboardPage() {
       setRewards(r.data);
       await refreshBalance();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : t("messages.redeemFailed");
+      const errorMessage =
+        err instanceof Error ? err.message : t("messages.redeemFailed");
       setRedeemStatus((prev) => ({ ...prev, [rewardId]: "error" }));
       setRedeemMessage((prev) => ({ ...prev, [rewardId]: errorMessage }));
       toast(errorMessage, "error");
@@ -162,48 +191,66 @@ export default function DashboardPage() {
         <NetworkBanner />
 
         <section style={{ marginBottom: "2rem" }}>
-        <h1 className="page-title">Active Campaigns</h1>
-        {campaignError ? (
-          <ErrorState message={campaignError} onRetry={() => loadCampaigns(0, true)} />
-        ) : campaigns.length === 0 && !loadingMore ? (
-          <EmptyState
-            illustration="campaigns"
-            title="No active campaigns"
-            description="Check back later for new loyalty campaigns."
-          />
-        ) : (
-          <div className="campaign-grid">
-            {campaigns.map((campaign) => (
-              <CampaignCard
-                key={campaign.id}
-                campaign={campaign}
-                isClaimed={optimisticClaimed.has(campaign.id)}
-                onClaim={() => handleClaim(campaign.id)}
-                disabled={networkDisabled}
-              />
-            ))}
+          <h1 className="page-title">Active Campaigns</h1>
+          {campaignError ? (
+            <ErrorState
+              message={campaignError}
+              onRetry={() => loadCampaigns(0, true)}
+            />
+          ) : campaigns.length === 0 && !loadingMore ? (
+            <EmptyState
+              illustration="campaigns"
+              title="No active campaigns"
+              description="Check back later for new loyalty campaigns."
+            />
+          ) : (
+            <div className="campaign-grid">
+              {campaigns.map((campaign) => (
+                <CampaignCard
+                  key={campaign.id}
+                  campaign={campaign}
+                  isClaimed={optimisticClaimed.has(campaign.id)}
+                  onClaim={() => handleClaim(campaign.id)}
+                  disabled={networkDisabled}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section style={{ marginTop: 40 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "16px",
+            }}
+          >
+            <h2 className="section-title" style={{ marginBottom: 0 }}>
+              {t("rewards.title")}
+            </h2>
+            <Link
+              href="/dashboard/history"
+              className="btn btn-outline"
+              style={{ fontSize: "0.8rem", padding: "4px 12px" }}
+            >
+              View History
+            </Link>
           </div>
+          <RewardList
+            rewards={rewards}
+            onRedeem={networkDisabled ? undefined : handleRedeem}
+            redeemStatus={redeemStatus}
+            redeemMessage={redeemMessage}
+            error={rewardError}
+            onRetry={loadRewards}
+          />
+        </section>
+
+        {hasMore && (
+          <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
         )}
-      </section>
-
-      <section style={{ marginTop: 40 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h2 className="section-title" style={{ marginBottom: 0 }}>{t("rewards.title")}</h2>
-          <Link href="/dashboard/history" className="btn btn-outline" style={{ fontSize: "0.8rem", padding: "4px 12px" }}>
-            View History
-          </Link>
-        </div>
-        <RewardList
-          rewards={rewards}
-          onRedeem={networkDisabled ? undefined : handleRedeem}
-          redeemStatus={redeemStatus}
-          redeemMessage={redeemMessage}
-          error={rewardError}
-          onRetry={loadRewards}
-        />
-      </section>
-
-      {hasMore && <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />}
       </div>
     </WalletGuard>
   );
