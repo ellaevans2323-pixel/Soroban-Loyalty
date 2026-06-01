@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { api, AnalyticsData } from "@/lib/api";
 import { ExperimentStatsPanel } from "@/components/ExperimentStatsPanel";
 
 import { StatCardsSkeleton, BarChartSkeleton, LineChartSkeleton } from "@/components/ChartSkeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
 const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
 const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
@@ -23,13 +24,74 @@ const DATE_RANGES = [
   { label: "Last 90 days", value: 90 },
 ];
 
+interface TooltipPayloadEntry {
+  name: string;
+  value: number;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+  label?: string;
+}
+
+/** Custom tooltip matching the design system. Keyboard-accessible via aria-live on the chart wrapper.
+ *  Shown on hover and focus of chart data points. Positioned to avoid viewport clipping.
+ */
+function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      role="tooltip"
+      style={{
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        padding: "8px 12px",
+        fontSize: 13,
+        color: "var(--text-primary)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+        pointerEvents: "none",
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--text-secondary)" }}>{label}</div>
+      {payload.map((entry) => (
+        <div key={entry.name}>
+          <span style={{ color: "var(--accent)" }}>{entry.name}: </span>
+          <span>{entry.value.toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aggregation, setAggregation] = useState<"daily" | "weekly">("daily");
 
-  useEffect(() => {
+  const timeSeriesData = useMemo(() => {
+    if (!data || !data.claimsOverTime) return [];
+    if (aggregation === "daily") return data.claimsOverTime;
+
+    const weekly: Record<string, number> = {};
+    data.claimsOverTime.forEach((row) => {
+      const date = new Date(row.date);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      const startOfWeek = new Date(date.setDate(diff));
+      const weekStr = startOfWeek.toISOString().split("T")[0];
+      weekly[weekStr] = (weekly[weekStr] || 0) + row.claims;
+    });
+
+    return Object.entries(weekly)
+      .map(([date, claims]) => ({ date, claims }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [data, aggregation]);
+
+  const loadAnalytics = () => {
     setLoading(true);
     setError(null);
     api
@@ -37,6 +99,11 @@ export default function AnalyticsPage() {
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadAnalytics();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   return (
@@ -56,7 +123,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <ErrorState message={error} onRetry={loadAnalytics} />}
 
       <div style={{ opacity: loading ? 1 : 0, transition: "opacity 0.2s", position: loading ? "static" : "absolute", pointerEvents: "none", display: loading ? "block" : "none" }}
            aria-hidden={!loading}>
@@ -89,16 +156,18 @@ export default function AnalyticsPage() {
           <h2 className="section-title">Claims per Campaign</h2>
           {data.claimsPerCampaign.length > 0 ? (
             <>
-              <div style={{ width: "100%", height: 280 }} aria-hidden="true">
+              <div
+                style={{ width: "100%", height: 280 }}
+                role="img"
+                aria-label="Bar chart: claims per campaign. Use the data table below for accessible values."
+                tabIndex={0}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.claimsPerCampaign} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="name" tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
                     <YAxis tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8 }}
-                      labelStyle={{ color: "var(--text-primary)" }}
-                    />
+                    <Tooltip content={<ChartTooltip />} />
                     <Bar dataKey="claims" fill="var(--accent)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -136,19 +205,39 @@ export default function AnalyticsPage() {
           )}
 
           {/* Line chart: claims over time */}
-          <h2 className="section-title" style={{ marginTop: 40 }}>Claims Over Time</h2>
-          {data.claimsOverTime.length > 0 ? (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 40, marginBottom: 16 }}>
+            <h2 className="section-title" style={{ margin: 0 }}>Claims Over Time</h2>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button 
+                onClick={() => setAggregation("daily")} 
+                className={`btn ${aggregation === "daily" ? "btn-primary" : "btn-secondary"}`}
+                style={{ padding: "4px 12px", fontSize: "0.875rem", minHeight: "32px" }}
+              >
+                Daily
+              </button>
+              <button 
+                onClick={() => setAggregation("weekly")} 
+                className={`btn ${aggregation === "weekly" ? "btn-primary" : "btn-secondary"}`}
+                style={{ padding: "4px 12px", fontSize: "0.875rem", minHeight: "32px" }}
+              >
+                Weekly
+              </button>
+            </div>
+          </div>
+          {timeSeriesData.length > 0 ? (
             <>
-              <div style={{ width: "100%", height: 280 }} aria-hidden="true">
+              <div
+                style={{ width: "100%", height: 280 }}
+                role="img"
+                aria-label="Line chart: claims over time. Use the data table below for accessible values."
+                tabIndex={0}
+              >
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.claimsOverTime} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                  <LineChart data={timeSeriesData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 11 }} />
                     <YAxis tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8 }}
-                      labelStyle={{ color: "var(--text-primary)" }}
-                    />
+                    <Tooltip content={<ChartTooltip />} />
                     <Line type="monotone" dataKey="claims" stroke="var(--accent)" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -165,7 +254,7 @@ export default function AnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.claimsOverTime.map((row) => (
+                    {timeSeriesData.map((row) => (
                       <tr key={row.date} style={{ borderBottom: "1px solid var(--border)" }}>
                         <td style={{ padding: "8px 12px" }}>{row.date}</td>
                         <td style={{ padding: "8px 12px", textAlign: "right" }}>{row.claims}</td>

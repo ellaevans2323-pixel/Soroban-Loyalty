@@ -3,12 +3,14 @@ import Link from "next/link";
 import { WalletProvider } from "@/context/WalletContext";
 import { I18nProvider } from "@/context/I18nContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { WalletConnector } from "@/components/WalletConnector";
 import { NetworkStatusIndicator } from "@/components/NetworkStatusIndicator";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { PageTransition } from "@/components/PageTransition";
+import { NavLinks } from "@/components/NavLinks";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -32,10 +34,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <header className="site-header">
         <Link href="/" className="logo">SorobanLoyalty</Link>
         <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/merchant">Merchant</Link>
-          <Link href="/transactions">Transactions</Link>
-          <Link href="/analytics">Analytics</Link>
+          <NavLinks />
         </nav>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <LanguageSwitcher />
@@ -59,9 +58,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <I18nProvider>
           <ToastProvider>
-            <WalletProvider>
-              <LayoutContent>{children}</LayoutContent>
-            </WalletProvider>
+            <ThemeProvider>
+              <WalletProvider>
+                <LayoutContent>{children}</LayoutContent>
+              </WalletProvider>
+            </ThemeProvider>
           </ToastProvider>
         </I18nProvider>
       </body>

@@ -142,6 +142,7 @@ body {
 .site-header nav { display: flex; gap: 20px; flex: 1; }
 .site-header nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; }
 .site-header nav a:hover { color: var(--text-primary); }
+.nav-link-active { color: var(--accent) !important; font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
 
 /* Desktop nav hidden on mobile */
 .desktop-nav { display: flex; gap: 20px; flex: 1; }
@@ -318,6 +319,20 @@ body {
 .btn-secondary { background: var(--btn-secondary-bg); color: var(--text-primary); }
 .btn-secondary:hover:not(:disabled) { background: var(--btn-secondary-hover); }
 .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+.btn-danger { background: #dc2626; color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.btn-spinner {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 
 /* ── Theme toggle ─────────────────────────────────────────────────────────── */
 .theme-toggle {
@@ -414,29 +429,28 @@ body {
   .empty-state-container { padding: 32px 16px; }
 }
 /* ── Responsive Grid ──────────────────────────────────────────────────────── */
-.grid {
+.grid,
+.campaign-grid {
   display: grid;
   gap: 20px;
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
-}
-
-/* Mobile: Single column (< 640px) */
-.grid {
   grid-template-columns: 1fr;
 }
 
 /* Tablet: Two columns (640px - 1024px) */
 @media (min-width: 640px) {
-  .grid {
+  .grid,
+  .campaign-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 /* Desktop: Three columns (> 1024px) */
 @media (min-width: 1024px) {
-  .grid {
+  .grid,
+  .campaign-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }

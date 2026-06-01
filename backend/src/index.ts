@@ -9,6 +9,7 @@ import { rpcServer } from "./soroban";
 import { pool } from "./db";
 import { registry, httpRequestsTotal, httpRequestDuration, dbPoolActive, dbPoolIdle, dbPoolWaiting } from "./metrics";
 import { logger, requestLogger, errorAlertMiddleware } from "./logger";
+import { runMigrations } from "./migrate";
 
 // ── Startup sequence ──────────────────────────────────────────────────────────
 // 1. Load .env (no-op in production where vars are injected)
@@ -35,6 +36,17 @@ const PORT = process.env.PORT ?? 3001;
 
 const server = app.listen(PORT, async () => {
   logger.info(`Server listening on port ${PORT}`);
+
+  if (process.env.NODE_ENV === "development") {
+    try {
+      await runMigrations();
+    } catch (err) {
+      logger.error("Failed to run migrations on startup", err instanceof Error ? err : new Error(String(err)));
+      // Optionally exit if migrations fail
+      // process.exit(1);
+    }
+  }
+
   if (process.env.ENABLE_INDEXER !== "false") {
     await startIndexer();
   }

@@ -1,4 +1,5 @@
 import { pool } from "../db";
+import { redisClient } from "../lib/redis";
 
 export interface AnalyticsData {
   totalClaims: number;
@@ -66,4 +67,59 @@ export async function getAnalytics(days: number): Promise<AnalyticsData> {
       claims: parseInt(r.claims, 10),
     })),
   };
+}
+
+export interface CampaignAnalyticsData {
+  total_campaigns: number;
+  total_claims: number;
+  claims_per_day: { date: string; count: number }[];
+  top_campaigns: { campaign_id: number; claims: number }[];
+}
+
+const CACHE_KEY = "analytics:campaigns";
+const CACHE_TTL = 300; // 5 minutes
+
+export async function getCampaignAnalytics(): Promise<CampaignAnalyticsData> {
+  const cached = await redisClient.get(CACHE_KEY);
+  if (cached) return JSON.parse(cached) as CampaignAnalyticsData;
+
+  const since = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
+
+  const [totals, perDay, topCampaigns] = await Promise.all([
+    pool.query<{ total_campaigns: string; total_claims: string }>(
+      `SELECT
+         (SELECT COUNT(*) FROM campaigns) AS total_campaigns,
+         COUNT(*) AS total_claims
+       FROM rewards
+       WHERE claimed_at >= $1`,
+      [since]
+    ),
+    pool.query<{ date: string; count: string }>(
+      `SELECT DATE(claimed_at) AS date, COUNT(*) AS count
+       FROM rewards
+       WHERE claimed_at >= $1
+       GROUP BY DATE(claimed_at)
+       ORDER BY date ASC`,
+      [since]
+    ),
+    pool.query<{ campaign_id: number; claims: string }>(
+      `SELECT campaign_id, COUNT(*) AS claims
+       FROM rewards
+       WHERE claimed_at >= $1
+       GROUP BY campaign_id
+       ORDER BY claims DESC
+       LIMIT 5`,
+      [since]
+    ),
+  ]);
+
+  const result: CampaignAnalyticsData = {
+    total_campaigns: parseInt(totals.rows[0].total_campaigns, 10),
+    total_claims: parseInt(totals.rows[0].total_claims, 10),
+    claims_per_day: perDay.rows.map((r) => ({ date: r.date, count: parseInt(r.count, 10) })),
+    top_campaigns: topCampaigns.rows.map((r) => ({ campaign_id: r.campaign_id, claims: parseInt(r.claims, 10) })),
+  };
+
+  await redisClient.setex(CACHE_KEY, CACHE_TTL, JSON.stringify(result));
+  return result;
 }

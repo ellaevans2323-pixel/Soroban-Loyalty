@@ -69,8 +69,11 @@ CREATE TABLE IF NOT EXISTS rewards (
     claimed_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     -- Timestamp when reward was fully redeemed (NULL if not redeemed)
     redeemed_at     TIMESTAMPTZ,
+    -- Soroban transaction hash for idempotent reward event indexing
+    tx_hash         VARCHAR(64),
     -- Enforce one claim per user per campaign
-    UNIQUE (user_address, campaign_id)
+    UNIQUE (user_address, campaign_id),
+    UNIQUE (tx_hash)
 );
 
 -- ── Transactions Table ───────────────────────────────────────────────────────

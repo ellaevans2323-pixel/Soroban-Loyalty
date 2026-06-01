@@ -1,4 +1,4 @@
-"use client";
+navigation"use client";
 
 import { useEffect, useRef } from "react";
 import { FocusTrap } from "./FocusTrap";
@@ -65,6 +65,7 @@ export function ConfirmDialog({
     >
       <FocusTrap active={open}>
         <div
+
           style={{
             background: "#1a1d27",
             border: "1px solid #2d3148",

@@ -27,9 +27,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
 import { Tooltip } from "@/components/Tooltip";
 import { TruncatedAddress } from "@/components/TruncatedAddress";
+import { useCountUp } from "@/lib/useCountUp";
 
 /**
  * FreighterModal Component
@@ -76,8 +78,12 @@ function FreighterModal({ onClose }: { onClose: () => void }) {
 }
 
 export function WalletConnector() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
   const { publicKey, connecting, lytBalance, balanceLoading, connect, disconnect } = useWallet();
   const [showModal, setShowModal] = useState(false);
+  const animatedBalance = useCountUp(lytBalance);
 
   const handleConnect = async () => {
     // Detect Freighter: the extension injects window.freighter
@@ -90,7 +96,11 @@ export function WalletConnector() {
       setShowModal(true);
       return;
     }
+
     await connect();
+    if (redirect) {
+      router.replace(redirect.startsWith("/") ? redirect : "/");
+    }
   };
 
   if (publicKey) {
@@ -108,7 +118,7 @@ export function WalletConnector() {
           {balanceLoading ? <span className="inline-spinner" aria-hidden="true" /> : null}
           <Tooltip content="Your LYT token balance — earned by claiming campaigns">
             <span aria-live="polite" aria-busy={balanceLoading}>
-              {lytBalance.toLocaleString()} LYT
+              {animatedBalance.toLocaleString()} LYT
             </span>
           </Tooltip>
         </span>

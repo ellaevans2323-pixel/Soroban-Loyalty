@@ -40,7 +40,8 @@
     "redeemed": "Canjeado {amount} LYT",
     "actions": {
       "redeem": "Canjear",
-      "redeeming": "Canjeando..."
+      "redeeming": "Canjeando...",
+      "redeemed": "¡Canjeado!"
     }
   },
   "network": {
