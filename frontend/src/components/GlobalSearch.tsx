@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { api, Campaign } from "@/lib/api";
+import { FocusTrap } from "./FocusTrap";
+
 
 const RECENT_KEY = "soroban_recent_searches";
 const MAX_RECENT = 5;
@@ -61,7 +63,7 @@ export function GlobalSearch() {
     if (open && allCampaigns.length === 0) {
       api.getCampaigns(100, 0)
         .then(({ campaigns }) => setAllCampaigns(campaigns))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [open, allCampaigns.length]);
 
@@ -105,78 +107,83 @@ export function GlobalSearch() {
 
   const showRecent = !query.trim() && recent.length > 0;
 
+
   return (
     <div className="search-overlay" role="dialog" aria-modal="true" aria-label="Global search">
       {/* Backdrop */}
       <div className="search-backdrop" onClick={close} aria-hidden="true" />
 
-      <div className="search-modal">
-        <div className="search-input-row">
-          <span className="search-icon" aria-hidden="true">⌕</span>
-          <input
-            ref={inputRef}
-            className="search-input"
-            type="search"
-            placeholder="Search campaigns…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onKeyDown}
-            aria-label="Search campaigns"
-            aria-autocomplete="list"
-            aria-controls="search-results"
-            aria-activedescendant={results[cursor] ? `sr-${results[cursor].id}` : undefined}
-          />
-          <kbd className="search-esc" onClick={close}>Esc</kbd>
-        </div>
+      <FocusTrap active>
 
-        <div id="search-results" role="listbox" aria-label="Search results">
-          {showRecent && (
-            <>
-              <p className="search-section-label">Recent searches</p>
-              {recent.map((r) => (
-                <button
-                  key={r}
-                  className="search-recent-item"
-                  onClick={() => setQuery(r)}
-                >
-                  <span className="search-recent-icon" aria-hidden="true">↺</span>
-                  {r}
-                </button>
-              ))}
-            </>
-          )}
+        <div className="search-modal">
+          <div className="search-input-row">
+            <span className="search-icon" aria-hidden="true">⌕</span>
+            <input
+              ref={inputRef}
+              className="search-input"
+              type="search"
+              placeholder="Search campaigns…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              aria-label="Search campaigns"
+              aria-autocomplete="list"
+              aria-controls="search-results"
+              aria-activedescendant={results[cursor] ? `sr-${results[cursor].id}` : undefined}
+            />
+            <kbd className="search-esc" onClick={close}>Esc</kbd>
+          </div>
 
-          {query.trim() && results.length === 0 && (
-            <p className="search-empty">No campaigns found for &ldquo;{query}&rdquo;</p>
-          )}
+          <div id="search-results" role="listbox" aria-label="Search results">
+            {showRecent && (
+              <>
+                <p className="search-section-label">Recent searches</p>
+                {recent.map((r) => (
+                  <button
+                    key={r}
+                    className="search-recent-item"
+                    onClick={() => setQuery(r)}
+                  >
+                    <span className="search-recent-icon" aria-hidden="true">↺</span>
+                    {r}
+                  </button>
+                ))}
+              </>
+            )}
 
-          {results.map((c, i) => (
-            <div
-              key={c.id}
-              id={`sr-${c.id}`}
-              role="option"
-              aria-selected={i === cursor}
-              className={`search-result ${i === cursor ? "search-result-active" : ""}`}
-              onClick={() => navigate(c.id, query)}
-              onMouseEnter={() => setCursor(i)}
-            >
-              <div className="search-result-main">
-                <span className="search-result-merchant">{c.merchant}</span>
-                <span className={`search-result-badge badge-${statusLabel(c).toLowerCase()}`}>
-                  {statusLabel(c)}
-                </span>
+            {query.trim() && results.length === 0 && (
+              <p className="search-empty">No campaigns found for &ldquo;{query}&rdquo;</p>
+            )}
+
+            {results.map((c, i) => (
+              <div
+                key={c.id}
+                id={`sr-${c.id}`}
+                role="option"
+                aria-selected={i === cursor}
+                className={`search-result ${i === cursor ? "search-result-active" : ""}`}
+                onClick={() => navigate(c.id, query)}
+                onMouseEnter={() => setCursor(i)}
+              >
+                <div className="search-result-main">
+                  <span className="search-result-merchant">{c.merchant}</span>
+                  <span className={`search-result-badge badge-${statusLabel(c).toLowerCase()}`}>
+                    {statusLabel(c)}
+                  </span>
+                </div>
+                <span className="search-result-meta">{c.reward_amount} LYT · Campaign #{c.id}</span>
               </div>
-              <span className="search-result-meta">{c.reward_amount} LYT · Campaign #{c.id}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="search-footer">
-          <span><kbd>↑↓</kbd> navigate</span>
-          <span><kbd>↵</kbd> open</span>
-          <span><kbd>Esc</kbd> close</span>
+          <div className="search-footer">
+            <span><kbd>↑↓</kbd> navigate</span>
+            <span><kbd>↵</kbd> open</span>
+            <span><kbd>Esc</kbd> close</span>
+          </div>
         </div>
-      </div>
+      </FocusTrap>
     </div>
   );
 }
+

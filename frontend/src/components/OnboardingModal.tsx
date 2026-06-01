@@ -61,7 +61,8 @@ export function OnboardingModal() {
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
-      <FocusTrap active>
+      <FocusTrap active={true}>
+
         <div className="modal onboarding-modal">
           {/* Progress dots */}
           <div className="onboarding-progress" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
