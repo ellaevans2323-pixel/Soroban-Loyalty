@@ -5,6 +5,11 @@ const prefersReducedMotion =
     ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
     : false;
 
+/**
+ * Animates a numeric value from its previous value to `target` over `duration` ms
+ * using an ease-out cubic curve. Skips animation on initial render and when
+ * prefers-reduced-motion is set.
+ */
 export function useCountUp(target: number, duration = 600): number {
   const [value, setValue] = useState(target);
   const prev = useRef(target);
