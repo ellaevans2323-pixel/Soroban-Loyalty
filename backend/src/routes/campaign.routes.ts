@@ -7,6 +7,7 @@ import {
   reorderCampaigns,
   softDeleteCampaign,
   restoreCampaign,
+  deactivateCampaign,
   CampaignFilters,
 } from "../services/campaign.service";
 import { redisClient } from "../lib/redis";
@@ -188,7 +189,7 @@ campaignRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
   };
 
   try {
-    await redisClient.setex(cacheKey, 30, JSON.stringify(paginatedResponse));
+    await redisClient.setex(cacheKey, 60, JSON.stringify(paginatedResponse));
   } catch (err) {
     logger.error("Redis cache write error", err as Error);
   }
@@ -364,5 +365,14 @@ campaignRouter.post("/", requireAuth, sanitizeBody, validateBody(CreateCampaignS
     total_claimed: 0,
     owner_address: ownerAddress,
   });
+
+  // Invalidate all campaign list cache keys
+  try {
+    const keys = await redisClient.keys("campaigns:list:*");
+    if (keys.length > 0) await redisClient.del(...keys);
+  } catch (err) {
+    logger.error("Redis cache invalidation error", err as Error);
+  }
+
   res.status(201).json({ ok: true });
 }));
