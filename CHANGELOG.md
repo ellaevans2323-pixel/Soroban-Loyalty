@@ -1,3 +1,10 @@
+# [1.54.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.53.0...v1.54.0) (2026-06-01)
+
+
+### Features
+
+* add Escape key dismissal to Tooltip component ([c532aec](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/c532aec322585153d57670545791bd155e69a930)), closes [#344](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/344)
+
 # [1.53.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.52.0...v1.53.0) (2026-06-01)
 
 
