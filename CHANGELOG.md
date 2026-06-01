@@ -1,3 +1,10 @@
+## [1.55.2](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.55.1...v1.55.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* **#291:** implement Redis caching for GET /campaigns ([f63b5e5](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/f63b5e525cba1cc489437d216ddd45954c7b40f4)), closes [#291](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/291)
+
 ## [1.55.1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.55.0...v1.55.1) (2026-06-01)
 
 
