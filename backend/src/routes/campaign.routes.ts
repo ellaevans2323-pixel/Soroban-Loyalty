@@ -275,7 +275,7 @@ campaignRouter.get("/:id", asyncHandler(async (req: Request, res: Response) => {
  *       500:
  *         description: Server error.
  */
-campaignRouter.patch("/reorder", validateBody(ReorderSchema), asyncHandler(async (req: Request, res: Response) => {
+campaignRouter.patch("/reorder", writeLimiter, validateBody(ReorderSchema), asyncHandler(async (req: Request, res: Response) => {
   const { order } = req.body;
   await reorderCampaigns(order);
   res.json({ ok: true });
@@ -314,7 +314,7 @@ campaignRouter.patch("/:id", requireAuth, asyncHandler(async (req: Request, res:
  * DELETE /campaigns/:id
  * Soft-deletes a campaign by setting deleted_at.
  */
-campaignRouter.delete("/:id", async (req: Request, res: Response) => {
+campaignRouter.delete("/:id", writeLimiter, async (req: Request, res: Response) => {
   const id = parseStrictInteger(String(req.params.id));
   if (id === null) return res.status(400).json({ error: "Invalid id" });
   try {
@@ -330,7 +330,7 @@ campaignRouter.delete("/:id", async (req: Request, res: Response) => {
  * POST /campaigns/:id/restore
  * Restores a soft-deleted campaign.
  */
-campaignRouter.post("/:id/restore", async (req: Request, res: Response) => {
+campaignRouter.post("/:id/restore", writeLimiter, async (req: Request, res: Response) => {
   const id = parseStrictInteger(String(req.params.id));
   if (id === null) return res.status(400).json({ error: "Invalid id" });
   try {
