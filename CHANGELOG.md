@@ -1,3 +1,13 @@
+# [1.56.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.55.2...v1.56.0) (2026-06-02)
+
+
+### Features
+
+* **backend:** add background job for expired campaign deactivation ([805544d](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/805544df5a73453bc2c47e92d732d00da1dd31f7)), closes [#293](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/293)
+* **backend:** implement rate limiting on public API endpoints ([5444d82](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/5444d8241fb2fee2167ac7b97ea58c199c346f3c)), closes [#296](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/296)
+* **backend:** validate environment variables on server startup ([89acee3](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/89acee344419fa1cacf9ab5ca0eb0456fc00e33b)), closes [#295](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/295)
+* **frontend:** add client-side form validation to campaign creation form ([6677cc9](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/6677cc9170ec6f63ea48a238338a69cc82ce9fe4)), closes [#294](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/294)
+
 ## [1.55.2](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.55.1...v1.55.2) (2026-06-01)
 
 
