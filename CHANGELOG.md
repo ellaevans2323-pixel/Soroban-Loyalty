@@ -1,3 +1,10 @@
+## [1.56.1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.56.0...v1.56.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* **ui:** add color-coded status badges to campaign cards ([#354](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/354)) ([4fa1d66](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/4fa1d66934ee57984d9df9c8bebcadd981d6b8c9))
+
 # [1.56.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.55.2...v1.56.0) (2026-06-02)
 
 
