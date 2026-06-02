@@ -13,10 +13,10 @@
   --btn-secondary-hover: #3a3f5c;
   --badge-active-bg: #14532d;
   --badge-active-color: #4ade80;
-  --badge-inactive-bg: #450a0a;
-  --badge-inactive-color: #f87171;
-  --badge-expired-bg: #1c1917;
-  --badge-expired-color: #c4bdb8; /* was #a8a29e (3.8:1 → 5.1:1 on #1c1917) */
+  --badge-inactive-bg: #1f2937;
+  --badge-inactive-color: #9ca3af;
+  --badge-expired-bg: #450a0a;
+  --badge-expired-color: #f87171;
   --alert-error-bg: #450a0a;
   --alert-error-color: #f87171;
   --alert-error-border: #7f1d1d;
@@ -39,10 +39,10 @@
   --btn-secondary-hover: #cbd5e1;
   --badge-active-bg: #dcfce7;
   --badge-active-color: #166534;
-  --badge-inactive-bg: #fee2e2;
-  --badge-inactive-color: #991b1b;
-  --badge-expired-bg: #f1f5f9;
-  --badge-expired-color: #4b5563; /* was #64748b (4.0:1 → 5.9:1 on #f1f5f9) */
+  --badge-inactive-bg: #f1f5f9;
+  --badge-inactive-color: #4b5563;
+  --badge-expired-bg: #fee2e2;
+  --badge-expired-color: #991b1b;
   --alert-error-bg: #fee2e2;
   --alert-error-color: #991b1b;
   --alert-error-border: #fca5a5;
@@ -376,9 +376,9 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.badge[data-status="active"] { background: rgba(20, 83, 45, 0.3); color: #4ade80; border: 1px solid #14532d; }
-.badge[data-status="inactive"] { background: rgba(69, 10, 10, 0.3); color: #f87171; border: 1px solid #450a0a; }
-.badge[data-status="expired"] { background: rgba(28, 25, 23, 0.3); color: var(--badge-expired-color); border: 1px solid #1c1917; }
+.badge[data-status="active"]   { background: var(--badge-active-bg);   color: var(--badge-active-color);   border: 1px solid var(--badge-active-color); }
+.badge[data-status="inactive"] { background: var(--badge-inactive-bg); color: var(--badge-inactive-color); border: 1px solid var(--badge-inactive-color); }
+.badge[data-status="expired"]  { background: var(--badge-expired-bg);  color: var(--badge-expired-color);  border: 1px solid var(--badge-expired-color); }
 
 .campaign-title { font-size: 1.25rem; font-weight: 700; color: #fff; }
 .reward-highlight { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin: 4px 0; }
